@@ -6,6 +6,7 @@
     in the LICENSE file.
 */
 #include <iostream>
+#include <ctime>
 
 #include "tiny_dnn/tiny_dnn.h"
 
@@ -206,10 +207,15 @@ int main(int argc, char **argv) {
             << "Number of epochs: " << epochs << std::endl
             << "Backend type: " << backend_type << std::endl
             << std::endl;
+
+  const clock_t begin_time = clock();
+  
   try {
     train_lenet(data_path, learning_rate, epochs, minibatch_size, backend_type);
   } catch (tiny_dnn::nn_error &err) {
     std::cerr << "Exception: " << err.what() << std::endl;
   }
+  std::cout << "Total time: " << float(clock() - begin_time) / CLOCKS_PER_SEC << std::endl;
+
   return 0;
 }
