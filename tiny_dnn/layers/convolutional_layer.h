@@ -477,7 +477,8 @@ class convolutional_layer : public layer {
     } else if (backend_type == core::backend_t::opencl) {
       //throw nn_error("Not implemented engine: " + to_string(backend_type));
       kernel_fwd_.reset(new Conv2dOpenCLForwardOp(ctx));	// mgu
-      kernel_back_.reset(new Conv2dOpenCLBackwardOp(ctx));
+      //kernel_back_.reset(new Conv2dOpenCLBackwardOp(ctx));	// use CPU for backward for now.
+      kernel_back_.reset(new Conv2dGradOp(ctx));
       return;
     } else if (backend_type == core::backend_t::libdnn) {
       if (layer::device() == nullptr) return;

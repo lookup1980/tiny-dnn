@@ -9,6 +9,7 @@
 #include <ctime>
 
 #include "tiny_dnn/tiny_dnn.h"
+#include "tiny_dnn/util/util.h"
 
 static void construct_net(tiny_dnn::network<tiny_dnn::sequential> &nn,
                           tiny_dnn::core::backend_t backend_type) {
@@ -144,6 +145,10 @@ static void usage(const char *argv0) {
 }
 
 int main(int argc, char **argv) {
+
+  //tiny_dnn::printAvailableDevice(0, 0);
+  //return 0;
+
   double learning_rate                   = 1;
   int epochs                             = 30;
   std::string data_path                  = "";

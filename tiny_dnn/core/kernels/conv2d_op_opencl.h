@@ -17,7 +17,18 @@ namespace tiny_dnn {
 class Conv2dOpenCLForwardOp : public core::OpKernel {
  public:
   explicit Conv2dOpenCLForwardOp(const core::OpKernelConstruction &context)
-    : core::OpKernel(context) {}
+    : core::OpKernel(context) 
+  {
+	  // mgu
+	  if (OpKernel::device_ != nullptr) {
+		  auto params = OpKernel::params_->conv();
+		  init_opencl(OpKernel::device_, params);
+	  }
+  }
+
+  // mgu
+  void init_opencl(const Device *device, const core::conv_params &params) {
+  }
 
   void compute(core::OpKernelContext &context) override {
 #if defined(USE_OPENCL) || defined(USE_CUDA)
