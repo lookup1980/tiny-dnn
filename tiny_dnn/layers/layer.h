@@ -50,7 +50,9 @@ class layer : public node {
  public:
   friend void connection_mismatch(const layer &from, const layer &to);
 
-  virtual ~layer() = default;
+  virtual ~layer() { 
+    printf("layer destructor: %016llX\n", this); 
+  };
 
   /**
    * @brief Defaul layer constructor that instantiates a N-input, M-output
@@ -72,6 +74,8 @@ class layer : public node {
     weight_init_ = std::make_shared<weight_init::xavier>();
     bias_init_   = std::make_shared<weight_init::constant>();
     trainable_   = true;
+
+    printf("layer constructor: %016llX\n", this);
   }
 
   layer(const layer &) = default;

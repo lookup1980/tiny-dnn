@@ -264,8 +264,11 @@ class convolutional_layer : public layer {
 
     // forward convolutional op context
     fwd_ctx_.set_in_out(fwd_in_data_, out_data);
+    fwd_ctx_.setParams(&params_);
     fwd_ctx_.setParallelize(layer::parallelize());
     fwd_ctx_.setEngine(layer::engine());
+    fwd_ctx_.setDevice(layer::device());
+    fwd_ctx_.setLayer(this);
 
     // launch convolutional kernel
     kernel_fwd_->compute(fwd_ctx_);
@@ -301,6 +304,8 @@ class convolutional_layer : public layer {
     bwd_ctx_.setParams(&params_);
     bwd_ctx_.setParallelize(layer::parallelize());
     bwd_ctx_.setEngine(layer::engine());
+    bwd_ctx_.setDevice(layer::device());
+    bwd_ctx_.setLayer(this);
 
     // launch convolutional kernel
     kernel_back_->compute(bwd_ctx_);
@@ -479,6 +484,8 @@ class convolutional_layer : public layer {
       kernel_fwd_.reset(new Conv2dOpenCLForwardOp(ctx));	// mgu
       //kernel_back_.reset(new Conv2dOpenCLBackwardOp(ctx));	// use CPU for backward for now.
       kernel_back_.reset(new Conv2dGradOp(ctx));
+      ProgramManager::getInstance().registerOp(*this);
+      
       return;
     } else if (backend_type == core::backend_t::libdnn) {
       if (layer::device() == nullptr) return;

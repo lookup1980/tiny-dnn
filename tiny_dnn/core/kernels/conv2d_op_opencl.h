@@ -43,9 +43,10 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
     // initialize outputs
     fill_tensor(out_data, float_t{0});
 
+    context.Layer()->layer_type();
     // retrieve program from register
     CLCudaAPI::Program program = ProgramManager::getInstance().program(
-      Program(context.device(), context.Layer()));
+      Program(context.device(), context.Layer()->layer_type()));
     nn_warn("Got Program");
 
     // Creates the kernel from the compiled program and sets the three
