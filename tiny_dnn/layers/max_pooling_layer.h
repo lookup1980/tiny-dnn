@@ -150,7 +150,8 @@ class max_pooling_layer : public layer {
   std::string layer_type() const override { return std::string("max-pool"); }
 
   std::string kernel_file() const override {
-    return std::string("../tiny_cnn/core/kernels/cl_kernels/pooling.cl");
+//    return std::string("../tiny_cnn/core/kernels/cl_kernels/pooling.cl");
+    return std::string(R"(D:\code\tiny-dnn\third_party\cl_kernels\pooling.cl)");
   }
 
   std::pair<size_t, size_t> pool_size() const {

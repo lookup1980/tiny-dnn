@@ -1,0 +1,14 @@
+#define Dtype float
+#define Dtype4 float4
+#define int_tp int
+#define CONCAT(A,B) A##_##B
+#define TEMPLATE(name,type) CONCAT(name,type)
+#define MULTI
+#define KERNEL_H 5
+#define KERNEL_W 5
+#define CHANNELS 6
+#define STRIDE_H 1
+#define STRIDE_W 1
+#define APPLY_BIAS 1
+#define OUTPUT_Z 6
+#define ZPAR 6

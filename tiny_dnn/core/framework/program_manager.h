@@ -14,6 +14,9 @@
 #include "tiny_dnn/core/framework/device.fwd.h"
 #include "tiny_dnn/core/framework/program.h"
 
+#include <iostream>
+#include <fstream>
+
 #if defined(USE_OPENCL) || defined(USE_CUDA)
 #ifdef USE_OPENCL
 #include "third_party/CLCudaAPI/clpp11.h"
@@ -141,6 +144,7 @@ class ProgramManager {
 	  // Define op kernel string and instantiate program
 	  // TODO(edgar): load from `cl_kernels` dir.
 	  // std::ifstream cl_file("opencl_hello_world.cl");
+    std::cout << "Kernel file name: " << layer.kernel_file() << std::endl;
 	  std::ifstream cl_file(layer.kernel_file());
 	  std::string program_tail{std::istreambuf_iterator<char>(cl_file),
 	  std::istreambuf_iterator<char>()};
@@ -159,6 +163,15 @@ class ProgramManager {
 
 	  std::string program_string = std::string{program_head} +
 	  std::string{program_tail};
+
+    // write the shader to file - mgu
+    char filename[32];
+    sprintf(filename, "%016llX", program_string.c_str());
+    std::ofstream myfile;
+    myfile.open(filename);
+    myfile << program_string;
+    myfile.close();
+
 	  auto program = CLCudaAPI::Program(context_, std::move(program_string));
 
 	  /*
