@@ -51,7 +51,7 @@ class layer : public node {
   friend void connection_mismatch(const layer &from, const layer &to);
 
   virtual ~layer() { 
-    printf("layer destructor: %016llX\n", this); 
+    //printf("layer destructor: %016llX\n", this); 
   };
 
   /**
@@ -75,7 +75,7 @@ class layer : public node {
     bias_init_   = std::make_shared<weight_init::constant>();
     trainable_   = true;
 
-    printf("layer constructor: %016llX\n", this);
+    //printf("layer constructor: %016llX\n", this);
   }
 
   layer(const layer &) = default;

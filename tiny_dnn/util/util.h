@@ -386,6 +386,47 @@ inline void printAvailableDevice(const size_t platform_id,
 #endif
 }
 
+// Print all the info of a program for debug - mgu
+inline void prrintCLPrograms(const CLCudaAPI::Program &program) {
+#if defined(USE_OPENCL) 
+  cl_int err;
+  printf("\n## Printing program information...\n");
+  printf(" > cl_program: %016llX\n", program());
+
+  size_t numKernels = 0;
+  err = clGetProgramInfo(program(), CL_PROGRAM_NUM_KERNELS, sizeof(size_t), &numKernels, NULL);
+  if (err == CL_SUCCESS)  {
+    printf(" > Kernel number: %016llX\n", numKernels);
+  }
+  else {
+    printf(" > Kernel number: failed\n");
+  }
+
+  if (numKernels > 0)
+  {
+    size_t size = 0;
+    err = clGetProgramInfo(program(), CL_PROGRAM_KERNEL_NAMES, 0, 0, &size);
+
+    if (err == CL_SUCCESS && size > 0)
+    {
+      char *kernelNames = (char*)malloc(size);
+      err = clGetProgramInfo(program(), CL_PROGRAM_KERNEL_NAMES, size, kernelNames, NULL);
+
+      if (err == CL_SUCCESS) {
+        printf(" > Kernel names : %s\n", kernelNames);
+      }
+      else {
+        printf(" > Kernel names : failed\n");
+      }
+      free(kernelNames);
+    }
+ }
+#else
+  CNN_UNREFERENCED_PARAMETER(program);
+  nn_warn("TinyDNN was not build with OpenCL support.");
+#endif
+}
+
 template <typename T, typename... Args>
 std::unique_ptr<T> make_unique(Args &&... args) {
   return std::unique_ptr<T>(new T(std::forward<Args>(args)...));

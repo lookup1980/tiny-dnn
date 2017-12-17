@@ -69,25 +69,25 @@ inline Device::Device(device_t type, const int platform_id, const int device_id)
 #endif
 }
 
-inline void Device::registerOp(layer &l) {
-  // TODO(egdar/nyanp): Should we raise an error here?
-  if (!hasCLCudaAPI()) {
-    throw nn_error("Cannot register layer: " + l.layer_type() +
-                   ". Device has disabled OpenCL support. Please "
-                   "specify platform and device in "
-                   "Device constructor");
-  }
-
-  if (l.engine() != core::backend_t::opencl &&
-      l.engine() != core::backend_t::libdnn) {
-    throw nn_error("Cannot register layer: " + l.layer_type() +
-                   ". Enabled engine: " + to_string(l.engine()) +
-                   ". OpenCL engine "
-                   "(backend_t::opencl) should be used.");
-  }
-
-  // Register the op to this device
-  ProgramManager::getInstance().registerOp(*this, l);
-}
+//inline void Device::registerOp(layer &l) {
+//  // TODO(egdar/nyanp): Should we raise an error here?
+//  if (!hasCLCudaAPI()) {
+//    throw nn_error("Cannot register layer: " + l.layer_type() +
+//                   ". Device has disabled OpenCL support. Please "
+//                   "specify platform and device in "
+//                   "Device constructor");
+//  }
+//
+//  if (l.engine() != core::backend_t::opencl &&
+//      l.engine() != core::backend_t::libdnn) {
+//    throw nn_error("Cannot register layer: " + l.layer_type() +
+//                   ". Enabled engine: " + to_string(l.engine()) +
+//                   ". OpenCL engine "
+//                   "(backend_t::opencl) should be used.");
+//  }
+//
+//  // Register the op to this device
+//  ProgramManager::getInstance().registerOp(*this, l);
+//}
 
 }  // namespace tiny_dnn

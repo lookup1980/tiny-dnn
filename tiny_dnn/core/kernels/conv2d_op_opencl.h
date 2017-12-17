@@ -54,6 +54,7 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
     // Note that the indices of the arguments have to be set according to
     // their
     // order in the kernel.
+    prrintCLPrograms(program);
     auto kernel = CLCudaAPI::Kernel(program, "CFMulti");
     nn_warn("Got Kernel");
 
