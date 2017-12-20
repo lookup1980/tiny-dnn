@@ -120,6 +120,13 @@ static void train_lenet(const std::string &data_dir_path,
 
   std::cout << "end training." << std::endl;
 
+  tiny_dnn::image<> img = nn[0]->output_to_image(); 
+  img.write("layer0.bmp");
+  tiny_dnn::image<> img4 = nn[4]->output_to_image();
+  img4.write("layer4.bmp");
+  tiny_dnn::image<> img8 = nn[8]->output_to_image();
+  img8.write("layer8.bmp");
+
   // test and show results
   nn.test(test_images, test_labels).print_detail(std::cout);
   // save network model & trained weights

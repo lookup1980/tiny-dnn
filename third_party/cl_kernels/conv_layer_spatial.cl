@@ -117,6 +117,98 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp image_offset,
 
 #endif
 
+#ifdef MULTI2
+__kernel void CFMulti(__global Dtype* image_data, int_tp image_offset,
+  __global Dtype* kernel_data, int_tp kernel_offset,
+  __global Dtype* bias, const int_tp bias_offset,
+  __global Dtype* convolved_image, const int_tp convolved_image_offset,
+  const ushort WIDTH,
+  const ushort HEIGHT,
+  const ushort OUTPUT_W,
+  const ushort OUTPUT_H,
+  __constant uchar *connect_table) {
+
+  const int_tp outputX = get_global_id(0);
+  const int_tp outputY = get_global_id(1);
+  const int_tp kernelNum = get_global_id(2)*ZPAR;
+  if (outputX < OUTPUT_W && outputY < OUTPUT_H)
+  {
+    Dtype sum[ZPAR];
+    Dtype4 vectorSum[ZPAR];
+    for (int_tp kern = 0; kern < ZPAR; kern++)
+    {
+      sum[kern] = 0.0f;
+      vectorSum[kern] = (0.0f, 0.0f, 0.0f, 0.0f);
+    }
+
+    const int_tp currentKernelOffset = kernel_offset + kernelNum * KERNEL_H*KERNEL_W*CHANNELS;
+    const int_tp biasIndex = bias_offset + kernelNum;
+    const int_tp local_image_offset = outputY * STRIDE_H*WIDTH + outputX * STRIDE_W;
+    const int_tp imageSize = WIDTH * HEIGHT;
+    const int_tp float4Reads = KERNEL_W / 4;
+    const int_tp floatReads = KERNEL_W % 4;
+    Dtype4 imageCache;
+
+    __global Dtype* image_dataPtrFloat = (image_data + (image_offset + local_image_offset));
+    __global Dtype* kernel_dataPtrFloat = (kernel_data + (currentKernelOffset));
+
+    for (int_tp c = 0; c < CHANNELS; c++)
+    {
+      for (int_tp y = 0; y < KERNEL_H; y++)
+      {
+
+        for (int_tp x = 0; x< float4Reads; x++)
+        {
+          imageCache = ((__global Dtype4*)image_dataPtrFloat)[x];
+          for (int_tp kern = 0; kern < ZPAR; kern++)
+          {
+            vectorSum[kern] += imageCache * ((__global Dtype4*)&(kernel_dataPtrFloat[kern*KERNEL_H*KERNEL_W*CHANNELS]))[x];
+          }
+        }
+
+        if (floatReads == 1)
+        {
+          imageCache = ((__global Dtype4*)image_dataPtrFloat)[float4Reads];
+          for (int_tp kern = 0; kern < ZPAR; kern++)
+            vectorSum[kern].s0 += (imageCache * ((__global Dtype4*) &(kernel_dataPtrFloat[kern*KERNEL_H*KERNEL_W*CHANNELS]))[float4Reads]).s0;
+        }
+        else if (floatReads == 2)
+        {
+          imageCache = ((__global Dtype4*)image_dataPtrFloat)[float4Reads];
+          for (int_tp kern = 0; kern < ZPAR; kern++)
+            vectorSum[kern].s01 += (imageCache*((__global Dtype4*)&(kernel_dataPtrFloat[kern*KERNEL_H*KERNEL_W*CHANNELS]))[float4Reads]).s01;
+        }
+        else if (floatReads == 3)
+        {
+          imageCache = ((__global Dtype4*)image_dataPtrFloat)[float4Reads];
+          for (int_tp kern = 0; kern < ZPAR; kern++)
+            vectorSum[kern].s012 += (imageCache*((__global Dtype4*)&(kernel_dataPtrFloat[kern*KERNEL_H*KERNEL_W*CHANNELS]))[float4Reads]).s012;
+        }
+
+        image_dataPtrFloat += WIDTH;
+        kernel_dataPtrFloat += KERNEL_W;
+      }
+      image_dataPtrFloat += imageSize - WIDTH * KERNEL_H;
+    }
+    for (int_tp kern = 0; kern < ZPAR; kern++)
+      sum[kern] = vectorSum[kern].x + vectorSum[kern].y + vectorSum[kern].z + vectorSum[kern].w;
+
+    if (APPLY_BIAS == 1)
+    {
+      for (int_tp kern = 0; kern < ZPAR; kern++)
+        if (kernelNum + kern < OUTPUT_Z)
+          convolved_image[convolved_image_offset + (kernelNum + kern)*OUTPUT_H*OUTPUT_W + outputY * OUTPUT_W + outputX] =
+          sum[kern] + bias[biasIndex + kern];
+    }
+    else
+      for (int_tp kern = 0; kern < ZPAR; kern++)
+        if (kernelNum + kern < OUTPUT_Z)
+          convolved_image[convolved_image_offset + (kernelNum + kern)*OUTPUT_H*OUTPUT_W + outputY * OUTPUT_W + outputX] = sum[kern];
+  }
+}
+
+#endif
+
 
 #ifdef MULTI_11
 __kernel void CFMulti_11_11_4(__global Dtype* image_data, int_tp image_offset,

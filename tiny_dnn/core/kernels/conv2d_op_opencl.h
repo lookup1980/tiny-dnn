@@ -62,6 +62,21 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
     CLCudaAPI::Context ctx   = context.device()->context();
     CLCudaAPI::Queue queue   = context.device()->queue();
 
+    // pass connect table to kernel - mgu
+    std::vector<cl_uchar> connect_table;
+    if (params.tbl.is_empty())
+    {
+      connect_table.assign(params.in.depth_*params.out.depth_, 1);
+    }
+    else
+    {
+      connect_table.resize(params.tbl.cols_ * params.tbl.rows_);
+      std::transform(connect_table.begin(), connect_table.end(), params.tbl.connected_.begin(), 
+        [](auto a) {return a ? 1 : 0; });
+    }
+    auto connect_table_buf = CLCudaAPI::Buffer<cl_uchar>(ctx, queue, connect_table.begin(),
+      connect_table.end());
+
     // TODO(edgar): check if we really need that
     for (size_t i = 0; i < in_data.size(); ++i) {
       // Creates device buffers and copies the host data to these
@@ -96,6 +111,7 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
         static_cast<cl_ushort>(params.out.width_));  // OUTPUT_W
       kernel.SetArgument(
         11, static_cast<cl_ushort>(params.out.height_));  // OUTPUT_H
+      kernel.SetArgument(12, connect_table_buf);  // connect table
 
       // We make sure that work group size is multiple of 16
       size_t res  = device->device().MaxWorkGroupSize() % 16;

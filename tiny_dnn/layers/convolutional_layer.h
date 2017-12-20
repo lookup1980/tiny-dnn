@@ -346,7 +346,7 @@ class convolutional_layer : public layer {
   // TODO(edgar): is it really needed?
   std::string kernel_header() const override {
     std::stringstream ss;
-    ss << "#define MULTI\n";
+    ss << "#define MULTI2\n";
     ss << "#define KERNEL_H " << params_.weight.height_ << "\n";
     ss << "#define KERNEL_W " << params_.weight.width_ << "\n";
     ss << "#define CHANNELS " << params_.weight.depth_ << "\n";
