@@ -113,9 +113,11 @@ class fully_connected_layer : public layer {
       kernel_back_.reset(new FullyConnectedGradOp(ctx));
 	}
 	else if (backend_type == core::backend_t::opencl) {
-	  kernel_fwd_.reset(new Conv2dOpenCLForwardOp(ctx));
-	  kernel_back_.reset(new Conv2dOpenCLBackwardOp(ctx));
-	}
+	  //kernel_fwd_.reset(new Conv2dOpenCLForwardOp(ctx));
+	  //kernel_back_.reset(new Conv2dOpenCLBackwardOp(ctx));
+    kernel_fwd_.reset(new FullyConnectedOp(ctx));
+    kernel_back_.reset(new FullyConnectedGradOp(ctx));
+  }
 	else {
       throw nn_error("Not supported engine: " + to_string(backend_type));
     }

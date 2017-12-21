@@ -44,9 +44,9 @@ static const bool tbl[] = {
   using padding = tiny_dnn::padding;
 
   nn << conv(32, 32, 5, 1, 6,   // C1, 1@32x32-in, 6@28x28-out
-    padding::valid, true, 1, 1, backend_type);
-  nn << tanh();
-  nn << ave_pool(28, 28, 6, 2)   // S2, 6@28x28-in, 6@14x14-out
+    padding::valid, true, 1, 1, backend_type)
+     << tanh()
+     << ave_pool(28, 28, 6, 2)   // S2, 6@28x28-in, 6@14x14-out
      << tanh()
      << conv(14, 14, 5, 6, 16,   // C3, 6@14x14-in, 16@10x10-out
              connection_table(tbl, 6, 16),

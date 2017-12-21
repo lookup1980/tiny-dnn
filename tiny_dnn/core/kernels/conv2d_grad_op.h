@@ -44,6 +44,10 @@ class Conv2dGradOp : public core::OpKernel {
     } else if (engine == core::backend_t::avx) {
       kernels::conv2d_grad_op_avx(prev_out, W[0], dW, db, curr_delta,
                                   prev_delta, params, context.parallelize());
+    }
+    else if (engine == core::backend_t::opencl) {
+      kernels::conv2d_grad_op_avx(prev_out, W[0], dW, db, curr_delta,
+        prev_delta, params, context.parallelize());
     } else {
       throw nn_error("Not supported engine: " + to_string(engine));
     }

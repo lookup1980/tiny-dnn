@@ -42,11 +42,18 @@ class FullyConnectedGradOp : public core::OpKernel {
       kernels::fully_connected_op_internal(
         prev_out, W[0], dW, params.has_bias_ ? *db : dummy, curr_delta,
         prev_delta, params, context.parallelize());
-    } else if (engine == core::backend_t::avx) {
+    }
+    else if (engine == core::backend_t::avx) {
       kernels::fully_connected_op_avx(
         prev_out, W[0], dW, params.has_bias_ ? *db : dummy, curr_delta,
         prev_delta, params, context.parallelize());
-    } else {
+    }
+    else if (engine == core::backend_t::opencl) {
+      kernels::fully_connected_op_avx(
+        prev_out, W[0], dW, params.has_bias_ ? *db : dummy, curr_delta,
+        prev_delta, params, context.parallelize());
+    }
+    else {
       throw nn_error("Not supported engine: " + to_string(engine));
     }
   }
