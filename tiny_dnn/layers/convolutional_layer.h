@@ -356,6 +356,12 @@ class convolutional_layer : public layer {
     ss << "#define OUTPUT_Z " << params_.out.depth_ << "\n";
     // TODO(edgar): REVISE THIS
     ss << "#define ZPAR " << params_.out.depth_ << "\n";
+
+    ss << "#define IS_FULLY_CONNECTED " << int(params_.tbl.is_empty()) << "\n";
+//    ss << "#define KERNEL_D " << params_.weight.depth_ << "\n";
+    ss << "#define KERNEL_W_4 " << params_.weight.width_/4 << "\n";
+    ss << "#define KERNEL_W_MOD4 " << params_.weight.width_ % 4 << "\n";
+
     return ss.str();
   }
 

@@ -1,3 +1,21 @@
+#define Dtype float
+#define Dtype4 float4
+#define int_tp int
+#define CONCAT(A,B) A##_##B
+#define TEMPLATE(name,type) CONCAT(name,type)
+#define MULTI2
+#define KERNEL_H 5
+#define KERNEL_W 5
+#define CHANNELS 1920
+#define STRIDE_H 1
+#define STRIDE_W 1
+#define APPLY_BIAS 1
+#define OUTPUT_Z 120
+#define ZPAR 120
+#define IS_FULLY_CONNECTED 1
+#define KERNEL_D 1920
+#define KERNEL_W_4 1
+#define KERNEL_W_MOD4 1
 #ifndef __OPENCL_VERSION__
 #include "header.cl"
 #endif
@@ -133,7 +151,6 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp image_offset,
   const int_tp outputX = get_local_id(0);
   const int_tp outputY = get_local_id(1);
 
-  Dtype4 vectorSum = (0.0f, 0.0f, 0.0f, 0.0f);
   for (int_tp in_depth_idx = 0; in_depth_idx < (int_tp)DEPTH; in_depth_idx++)
   {
     if (!IS_FULLY_CONNECTED) {
@@ -143,45 +160,121 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp image_offset,
       }
     }
 
+
     for (int_tp y = 0; y < KERNEL_H; y++)
     {
-      __global Dtype* image_dataPtrFloat = image_data + (WIDTH * HEIGHT * in_depth_idx) + (WIDTH * (outputY+y)) + outputX + image_offset;
-      __global Dtype* kernel_dataPtrFloat = kernel_data + (KERNEL_W * KERNEL_H * ZPAR * out_depth_idx) + (KERNEL_W * KERNEL_H * in_depth_idx) + (KERNEL_W * y) + kernel_offset;
+      __global Dtype* image_dataPtrFloat = image_data + (WIDTH * HEIGHT * in_depth_idx) + (WIDTH * (outputY+y)) + outputX;
+      __global Dtype* kernel_dataPtrFloat = kernel_data + (KERNEL_W * KERNEL_H * out_depth_idx) + (KERNEL_W * y);
 
       for (int_tp x = 0; x < KERNEL_W_4; x++)
       {
         Dtype4 imageCache = ((__global Dtype4*)image_dataPtrFloat)[x];
-        vectorSum += imageCache * ((__global Dtype4*)kernel_dataPtrFloat)[x];
+        for (int_tp kern = 0; kern < ZPAR; kern++)
+        {
+          vectorSum[kern] += imageCache * ((__global Dtype4*)&(kernel_dataPtrFloat[kern*KERNEL_H*KERNEL_W*CHANNELS]))[x];
+        }
       }
 
       if (KERNEL_W_MOD4 == 1)
       {
-        Dtype4 imageCache.s0 = ((__global Dtype4*)image_dataPtrFloat)[KERNEL_W_4].s0;
-        vectorSum.s0 += imageCache.s0 * ((__global Dtype4*)kernel_dataPtrFloat)[x].s0;
+        imageCache = ((__global Dtype4*)image_dataPtrFloat)[float4Reads];
+        for (int_tp kern = 0; kern < ZPAR; kern++)
+          vectorSum[kern].s0 += (imageCache * ((__global Dtype4*) &(kernel_dataPtrFloat[kern*KERNEL_H*KERNEL_W*CHANNELS]))[float4Reads]).s0;
       }
       else if (KERNEL_W_MOD4 == 2)
       {
-        Dtype4 imageCache.s01 = ((__global Dtype4*)image_dataPtrFloat)[KERNEL_W_4].s01;
-        vectorSum.s01 += imageCache.s01 * ((__global Dtype4*)kernel_dataPtrFloat)[x].s01;
+        imageCache = ((__global Dtype4*)image_dataPtrFloat)[float4Reads];
+        for (int_tp kern = 0; kern < ZPAR; kern++)
+          vectorSum[kern].s01 += (imageCache*((__global Dtype4*)&(kernel_dataPtrFloat[kern*KERNEL_H*KERNEL_W*CHANNELS]))[float4Reads]).s01;
       }
       else if (KERNEL_W_MOD4 == 3)
       {
-        Dtype4 imageCache.s012 = ((__global Dtype4*)image_dataPtrFloat)[KERNEL_W_4].s012;
-        vectorSum.s012 += imageCache.s012 * ((__global Dtype4*)kernel_dataPtrFloat)[x].s012;
+        imageCache = ((__global Dtype4*)image_dataPtrFloat)[float4Reads];
+        for (int_tp kern = 0; kern < ZPAR; kern++)
+          vectorSum[kern].s012 += (imageCache*((__global Dtype4*)&(kernel_dataPtrFloat[kern*KERNEL_H*KERNEL_W*CHANNELS]))[float4Reads]).s012;
       }
     }
   }
 
-  Dtype4 sum = vectorSum.x + vectorSum.y + vectorSum.z + vectorSum.w;
-  int_tp offset = convolved_image_offset + out_depth_idx * OUTPUT_H*OUTPUT_W + outputY * OUTPUT_W + outputX;
 
-  if (APPLY_BIAS == 1)
+
+  //
+  const int_tp outputX = get_global_id(0);
+  const int_tp outputY = get_global_id(1);
+  const int_tp kernelNum = get_global_id(2)*ZPAR;
+  if (outputX < OUTPUT_W && outputY < OUTPUT_H)
   {
-    convolved_image[offset] = sum + bias[bias_offset + out_depth_idx];
-  }
-  else
-  {
-    convolved_image[offset] = sum;
+    Dtype sum[ZPAR];
+    Dtype4 vectorSum[ZPAR];
+    for (int_tp kern = 0; kern < ZPAR; kern++)
+    {
+      sum[kern] = 0.0f;
+      vectorSum[kern] = (0.0f, 0.0f, 0.0f, 0.0f);
+    }
+
+    const int_tp currentKernelOffset = kernel_offset + kernelNum * KERNEL_H*KERNEL_W*CHANNELS;
+    const int_tp biasIndex = bias_offset + kernelNum;
+    const int_tp local_image_offset = outputY * STRIDE_H*WIDTH + outputX * STRIDE_W;
+    const int_tp imageSize = WIDTH * HEIGHT;
+    const int_tp float4Reads = KERNEL_W / 4;
+    const int_tp floatReads = KERNEL_W % 4;
+    Dtype4 imageCache;
+
+    __global Dtype* image_dataPtrFloat = (image_data + (image_offset + local_image_offset));
+    __global Dtype* kernel_dataPtrFloat = (kernel_data + (currentKernelOffset));
+
+    for (int_tp c = 0; c < CHANNELS; c++)
+    {
+      for (int_tp y = 0; y < KERNEL_H; y++)
+      {
+
+        for (int_tp x = 0; x< float4Reads; x++)
+        {
+          imageCache = ((__global Dtype4*)image_dataPtrFloat)[x];
+          for (int_tp kern = 0; kern < ZPAR; kern++)
+          {
+            vectorSum[kern] += imageCache * ((__global Dtype4*)&(kernel_dataPtrFloat[kern*KERNEL_H*KERNEL_W*CHANNELS]))[x];
+          }
+        }
+
+        if (floatReads == 1)
+        {
+          imageCache = ((__global Dtype4*)image_dataPtrFloat)[float4Reads];
+          for (int_tp kern = 0; kern < ZPAR; kern++)
+            vectorSum[kern].s0 += (imageCache * ((__global Dtype4*) &(kernel_dataPtrFloat[kern*KERNEL_H*KERNEL_W*CHANNELS]))[float4Reads]).s0;
+        }
+        else if (floatReads == 2)
+        {
+          imageCache = ((__global Dtype4*)image_dataPtrFloat)[float4Reads];
+          for (int_tp kern = 0; kern < ZPAR; kern++)
+            vectorSum[kern].s01 += (imageCache*((__global Dtype4*)&(kernel_dataPtrFloat[kern*KERNEL_H*KERNEL_W*CHANNELS]))[float4Reads]).s01;
+        }
+        else if (floatReads == 3)
+        {
+          imageCache = ((__global Dtype4*)image_dataPtrFloat)[float4Reads];
+          for (int_tp kern = 0; kern < ZPAR; kern++)
+            vectorSum[kern].s012 += (imageCache*((__global Dtype4*)&(kernel_dataPtrFloat[kern*KERNEL_H*KERNEL_W*CHANNELS]))[float4Reads]).s012;
+        }
+
+        image_dataPtrFloat += WIDTH;
+        kernel_dataPtrFloat += KERNEL_W;
+      }
+      image_dataPtrFloat += imageSize - WIDTH * KERNEL_H;
+    }
+    for (int_tp kern = 0; kern < ZPAR; kern++)
+      sum[kern] = vectorSum[kern].x + vectorSum[kern].y + vectorSum[kern].z + vectorSum[kern].w;
+
+    if (APPLY_BIAS == 1)
+    {
+      for (int_tp kern = 0; kern < ZPAR; kern++)
+        if (kernelNum + kern < OUTPUT_Z)
+          convolved_image[convolved_image_offset + (kernelNum + kern)*OUTPUT_H*OUTPUT_W + outputY * OUTPUT_W + outputX] =
+          sum[kern] + bias[biasIndex + kern];
+    }
+    else
+      for (int_tp kern = 0; kern < ZPAR; kern++)
+        if (kernelNum + kern < OUTPUT_Z)
+          convolved_image[convolved_image_offset + (kernelNum + kern)*OUTPUT_H*OUTPUT_W + outputY * OUTPUT_W + outputX] = sum[kern];
   }
 }
 

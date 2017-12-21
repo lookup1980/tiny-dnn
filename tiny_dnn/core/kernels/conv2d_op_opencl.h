@@ -111,14 +111,18 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
         static_cast<cl_ushort>(params.out.width_));  // OUTPUT_W
       kernel.SetArgument(
         11, static_cast<cl_ushort>(params.out.height_));  // OUTPUT_H
-      kernel.SetArgument(12, connect_table_buf);  // connect table
+
+
+      kernel.SetArgument(
+        12, static_cast<cl_ushort>(params.in.depth_));  // DEPTH
+      kernel.SetArgument(13, connect_table_buf);  // connect table
 
       // We make sure that work group size is multiple of 16
-      size_t res  = device->device().MaxWorkGroupSize() % 16;
-      size_t size = device->device().MaxWorkGroupSize() - res;
+      // auto global = std::vector<size_t>{params.in.width_, params.in.height_, params.in.depth_};
+      auto local  = std::vector<size_t>{params.out.width_, params.out.height_, 1};
+      auto global = std::vector<size_t>{ params.out.width_, params.out.height_, params.out.depth_ };
 
-      auto global = std::vector<size_t>{size};
-      auto local  = std::vector<size_t>{16};
+      assert(local[0]*local[1]*local[2] <= device->device().MaxWorkGroupSize());
 
       // Creates a new CLCudaAPI event to be able to time kernels
       auto event = CLCudaAPI::Event();
