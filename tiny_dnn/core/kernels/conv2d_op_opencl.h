@@ -113,9 +113,9 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
         11, static_cast<cl_ushort>(params.out.height_));  // OUTPUT_H
 
 
+      kernel.SetArgument(12, connect_table_buf);  // connect table
       kernel.SetArgument(
-        12, static_cast<cl_ushort>(params.in.depth_));  // DEPTH
-      kernel.SetArgument(13, connect_table_buf);  // connect table
+        13, static_cast<cl_ushort>(params.in.depth_));  // DEPTH
 
       // We make sure that work group size is multiple of 16
       // auto global = std::vector<size_t>{params.in.width_, params.in.height_, params.in.depth_};

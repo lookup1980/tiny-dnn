@@ -156,25 +156,23 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp image_offset,
 
       if (KERNEL_W_MOD4 == 1)
       {
-        Dtype4 imageCache.s0 = ((__global Dtype4*)image_dataPtrFloat)[KERNEL_W_4].s0;
-        vectorSum.s0 += imageCache.s0 * ((__global Dtype4*)kernel_dataPtrFloat)[x].s0;
+        vectorSum.s0 += ((__global Dtype4*)image_dataPtrFloat)[KERNEL_W_4].s0 * ((__global Dtype4*)kernel_dataPtrFloat)[KERNEL_W_4].s0;
       }
       else if (KERNEL_W_MOD4 == 2)
       {
-        Dtype4 imageCache.s01 = ((__global Dtype4*)image_dataPtrFloat)[KERNEL_W_4].s01;
-        vectorSum.s01 += imageCache.s01 * ((__global Dtype4*)kernel_dataPtrFloat)[x].s01;
+        vectorSum.s01 += ((__global Dtype4*)image_dataPtrFloat)[KERNEL_W_4].s01 * ((__global Dtype4*)kernel_dataPtrFloat)[KERNEL_W_4].s01;
       }
       else if (KERNEL_W_MOD4 == 3)
       {
-        Dtype4 imageCache.s012 = ((__global Dtype4*)image_dataPtrFloat)[KERNEL_W_4].s012;
-        vectorSum.s012 += imageCache.s012 * ((__global Dtype4*)kernel_dataPtrFloat)[x].s012;
+        vectorSum.s012 += ((__global Dtype4*)image_dataPtrFloat)[KERNEL_W_4].s012 * ((__global Dtype4*)kernel_dataPtrFloat)[KERNEL_W_4].s012;
       }
     }
   }
 
-  Dtype4 sum = vectorSum.x + vectorSum.y + vectorSum.z + vectorSum.w;
+  Dtype sum = vectorSum.x + vectorSum.y + vectorSum.z + vectorSum.w;
   int_tp offset = convolved_image_offset + out_depth_idx * OUTPUT_H*OUTPUT_W + outputY * OUTPUT_W + outputX;
 
+  
   if (APPLY_BIAS == 1)
   {
     convolved_image[offset] = sum + bias[bias_offset + out_depth_idx];
