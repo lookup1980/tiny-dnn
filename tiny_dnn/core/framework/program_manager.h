@@ -192,7 +192,7 @@ class ProgramManager {
 	  //}
 	  nn_info("Compiling the kernel ... OK");
 
-    prrintCLPrograms(program);
+    printCLPrograms(program);
 
 	  // Kernel compilation succeed: Register program.
 	  programs_.insert({ key_program, program });

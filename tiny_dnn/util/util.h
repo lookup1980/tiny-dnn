@@ -387,7 +387,8 @@ inline void printAvailableDevice(const size_t platform_id,
 }
 
 // Print all the info of a program for debug - mgu
-inline void prrintCLPrograms(const CLCudaAPI::Program &program) {
+inline void printCLPrograms(const CLCudaAPI::Program &program) {
+  return;
 #if defined(USE_OPENCL) 
   cl_int err;
   printf("\n## Printing program information...\n");

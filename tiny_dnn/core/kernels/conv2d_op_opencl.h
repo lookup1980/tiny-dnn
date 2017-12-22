@@ -54,7 +54,7 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
     // Note that the indices of the arguments have to be set according to
     // their
     // order in the kernel.
-    prrintCLPrograms(program);
+    printCLPrograms(program);
     auto kernel = CLCudaAPI::Kernel(program, "CFMulti");
     nn_warn("Got Kernel");
 
@@ -139,18 +139,37 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
 
       // Upload data GPU -> CPU
       std::vector<float_t> out(out_data[i].size(), 0);
-      dev_out.Read(queue, out_data[i].size(), out);
+      dev_out.Read(queue, out_data[i].size(), &out_data[i][0]);
+
+      //// FOR DEBUG ONLY
+      //nn_warn("output kernel");
+      //for (size_t j = 0; j < out.size(); ++j) {
+      //  std::cout << out[j] << " ";
+      //}
+      //std::cout << std::endl;
 
       // FOR DEBUG ONLY
-      nn_warn("output kernel");
-      for (size_t j = 0; j < out.size(); ++j) {
-        std::cout << out[j] << " ";
+      if (0)
+      {
+        nn_warn("output kernel:\n");
+        for (size_t j = 0; j < out_data[i].size(); ++j) {
+          std::cout << out_data[i][j] << " ";
+          if ((j + 1) % 28 == 0)
+          {
+            std::cout << std::endl;
+            if ((j + 1) % (28 * 28) == 0)
+            {
+              std::cout << std::endl;
+            }
+          }
+        }
+        std::cout << std::endl;
       }
-      std::cout << std::endl;
 
       // copy back
-      std::copy(std::begin(out), std::end(out),
-                std::back_inserter(out_data[i]));
+      //std::copy(std::begin(out), std::end(out),out_data[i].begin());
+
+      int ii = 10;
     }
 #else
     CNN_UNREFERENCED_PARAMETER(context);

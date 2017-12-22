@@ -134,6 +134,7 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp image_offset,
   const int_tp outputY = get_local_id(1);
 
   Dtype4 vectorSum = (0.0f, 0.0f, 0.0f, 0.0f);
+  Dtype totalSum = 0.0f;
   for (int_tp in_depth_idx = 0; in_depth_idx < (int_tp)DEPTH; in_depth_idx++)
   {
     if (!IS_FULLY_CONNECTED) {
@@ -146,41 +147,21 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp image_offset,
     for (int_tp y = 0; y < KERNEL_H; y++)
     {
       __global Dtype* image_dataPtrFloat = image_data + (WIDTH * HEIGHT * in_depth_idx) + (WIDTH * (outputY+y)) + outputX + image_offset;
-      __global Dtype* kernel_dataPtrFloat = kernel_data + (KERNEL_W * KERNEL_H * ZPAR * out_depth_idx) + (KERNEL_W * KERNEL_H * in_depth_idx) + (KERNEL_W * y) + kernel_offset;
+      __global Dtype* kernel_dataPtrFloat = kernel_data + (KERNEL_W * KERNEL_H * DEPTH * out_depth_idx) + (KERNEL_W * KERNEL_H * in_depth_idx) + (KERNEL_W * y) + kernel_offset;
 
-      for (int_tp x = 0; x < KERNEL_W_4; x++)
+      for (int_tp x = 0; x < KERNEL_W; x++)
       {
-        Dtype4 imageCache = ((__global Dtype4*)image_dataPtrFloat)[x];
-        vectorSum += imageCache * ((__global Dtype4*)kernel_dataPtrFloat)[x];
-      }
-
-      if (KERNEL_W_MOD4 == 1)
-      {
-        vectorSum.s0 += ((__global Dtype4*)image_dataPtrFloat)[KERNEL_W_4].s0 * ((__global Dtype4*)kernel_dataPtrFloat)[KERNEL_W_4].s0;
-      }
-      else if (KERNEL_W_MOD4 == 2)
-      {
-        vectorSum.s01 += ((__global Dtype4*)image_dataPtrFloat)[KERNEL_W_4].s01 * ((__global Dtype4*)kernel_dataPtrFloat)[KERNEL_W_4].s01;
-      }
-      else if (KERNEL_W_MOD4 == 3)
-      {
-        vectorSum.s012 += ((__global Dtype4*)image_dataPtrFloat)[KERNEL_W_4].s012 * ((__global Dtype4*)kernel_dataPtrFloat)[KERNEL_W_4].s012;
+        totalSum += *(image_dataPtrFloat + x) * *(kernel_dataPtrFloat + x);
       }
     }
   }
 
-  Dtype sum = vectorSum.x + vectorSum.y + vectorSum.z + vectorSum.w;
+  Dtype sum = vectorSum.s0 + vectorSum.s1 + vectorSum.s2 + vectorSum.s3;
   int_tp offset = convolved_image_offset + out_depth_idx * OUTPUT_H*OUTPUT_W + outputY * OUTPUT_W + outputX;
 
-  
-  if (APPLY_BIAS == 1)
-  {
-    convolved_image[offset] = sum + bias[bias_offset + out_depth_idx];
-  }
-  else
-  {
-    convolved_image[offset] = sum;
-  }
+  __global Dtype* image_dataPtrFloat = image_data + (WIDTH * HEIGHT * 0) + (WIDTH * (outputY)) + outputX + image_offset;
+  convolved_image[offset] = totalSum;
+
 }
 
 #endif

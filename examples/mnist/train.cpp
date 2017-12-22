@@ -60,8 +60,7 @@ static const bool tbl[] = {
      << fc(120, 10, true, backend_type)  // F6, 120-in, 10-out
      << tanh();
 
-  int ii = 10;
-}
+ }
 
 static void train_lenet(const std::string &data_dir_path,
                         double learning_rate,
