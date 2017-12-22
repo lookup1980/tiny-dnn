@@ -128,17 +128,25 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp image_offset,
   const ushort OUTPUT_H,
   __constant uchar *connect_table,
   const ushort DEPTH) {
-
-  const int_tp out_depth_idx = get_global_id(2);
+  
+  const int_tp group_width = get_num_groups(0);
+  const int_tp sample_idx = get_group_id(0);
+  const int_tp sample_idy = get_group_id(1);
+  const int_tp sample_offset = sample_idy * group_width + sample_idx;
+  
+  
+  const int_tp OUTPUT_D = get_num_groups(2);
+  const int_tp out_depth_idx = get_group_id(2);
+  
   const int_tp outputX = get_local_id(0);
   const int_tp outputY = get_local_id(1);
 
-  Dtype4 vectorSum = (0.0f, 0.0f, 0.0f, 0.0f);
+
   Dtype totalSum = 0.0f;
   for (int_tp in_depth_idx = 0; in_depth_idx < (int_tp)DEPTH; in_depth_idx++)
   {
     if (!IS_FULLY_CONNECTED) {
-      uchar connected = connect_table[in_depth_idx*ZPAR + out_depth_idx];
+      uchar connected = connect_table[in_depth_idx*OUTPUT_D + out_depth_idx];
       if (!connected) {
         return;
       }
@@ -146,7 +154,7 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp image_offset,
 
     for (int_tp y = 0; y < KERNEL_H; y++)
     {
-      __global Dtype* image_dataPtrFloat = image_data + (WIDTH * HEIGHT * in_depth_idx) + (WIDTH * (outputY+y)) + outputX + image_offset;
+      __global Dtype* image_dataPtrFloat = image_data + (WIDTH * HEIGHT * DEPTH * sample_offset) + (WIDTH * HEIGHT * in_depth_idx) + (WIDTH * (outputY+y)) + outputX + image_offset;
       __global Dtype* kernel_dataPtrFloat = kernel_data + (KERNEL_W * KERNEL_H * DEPTH * out_depth_idx) + (KERNEL_W * KERNEL_H * in_depth_idx) + (KERNEL_W * y) + kernel_offset;
 
       for (int_tp x = 0; x < KERNEL_W; x++)
@@ -156,10 +164,7 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp image_offset,
     }
   }
 
-  Dtype sum = vectorSum.s0 + vectorSum.s1 + vectorSum.s2 + vectorSum.s3;
-  int_tp offset = convolved_image_offset + out_depth_idx * OUTPUT_H*OUTPUT_W + outputY * OUTPUT_W + outputX;
-
-  __global Dtype* image_dataPtrFloat = image_data + (WIDTH * HEIGHT * 0) + (WIDTH * (outputY)) + outputX + image_offset;
+  int_tp offset = convolved_image_offset + sample_offset * OUTPUT_D * OUTPUT_H*OUTPUT_W + out_depth_idx * OUTPUT_H*OUTPUT_W + outputY * OUTPUT_W + outputX;
   convolved_image[offset] = totalSum;
 
 }

@@ -77,81 +77,79 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
     auto connect_table_buf = CLCudaAPI::Buffer<cl_uchar>(ctx, queue, connect_table.begin(),
       connect_table.end());
 
-    // TODO(edgar): check if we really need that
+
+    auto dev_W =
+      CLCudaAPI::Buffer<float_t>(ctx, queue, W[0].begin(), W[0].end());
+    auto dev_bias =
+      CLCudaAPI::Buffer<float_t>(ctx, queue, bias[0].begin(), bias[0].end());
+
+    auto dev_in = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kReadOnly, in_data.size()*in_data[0].size());
+    auto dev_out = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kWriteOnly, out_data.size()*out_data[0].size());
+
     for (size_t i = 0; i < in_data.size(); ++i) {
-      // Creates device buffers and copies the host data to these
-      // device buffers.
+      dev_in.WriteAsync(queue, in_data[0].size(), &in_data[i][0], in_data[0].size()*i);
+    }
 
-      auto dev_in = CLCudaAPI::Buffer<float_t>(ctx, queue, in_data[i].begin(),
-                                               in_data[i].end());
+    kernel.SetArgument(0, dev_in);    // image_data
+    kernel.SetArgument(1, 0);         // image_offset
+    kernel.SetArgument(2, dev_W);     // kernel_data
+    kernel.SetArgument(3, 0);         // kernel_offset
+    kernel.SetArgument(4, dev_bias);  // bias
+    kernel.SetArgument(5, 0);         // bias_offset
+    kernel.SetArgument(6, dev_out);   // convolved_image
+    kernel.SetArgument(7, 0);         // convolved_image_offset
 
-      auto dev_W =
-        CLCudaAPI::Buffer<float_t>(ctx, queue, W[0].begin(), W[0].end());
-
-      auto dev_bias =
-        CLCudaAPI::Buffer<float_t>(ctx, queue, bias[0].begin(), bias[0].end());
-
-      auto dev_out = CLCudaAPI::Buffer<float_t>(ctx, queue, out_data[i].begin(),
-                                                out_data[i].end());
-
-      kernel.SetArgument(0, dev_in);    // image_data
-      kernel.SetArgument(1, 0);         // image_offset
-      kernel.SetArgument(2, dev_W);     // kernel_data
-      kernel.SetArgument(3, 0);         // kernel_offset
-      kernel.SetArgument(4, dev_bias);  // bias
-      kernel.SetArgument(5, 0);         // bias_offset
-      kernel.SetArgument(6, dev_out);   // convolved_image
-      kernel.SetArgument(7, 0);         // convolved_image_offset
-
-      kernel.SetArgument(8, static_cast<cl_ushort>(params.in.width_));  // WIDTH
-      kernel.SetArgument(9,
-                         static_cast<cl_ushort>(params.in.height_));  // HEIGHT
-      kernel.SetArgument(
-        10,
-        static_cast<cl_ushort>(params.out.width_));  // OUTPUT_W
-      kernel.SetArgument(
-        11, static_cast<cl_ushort>(params.out.height_));  // OUTPUT_H
+    kernel.SetArgument(8, static_cast<cl_ushort>(params.in.width_));  // WIDTH
+    kernel.SetArgument(9,
+      static_cast<cl_ushort>(params.in.height_));  // HEIGHT
+    kernel.SetArgument(
+      10,
+      static_cast<cl_ushort>(params.out.width_));  // OUTPUT_W
+    kernel.SetArgument(
+      11, static_cast<cl_ushort>(params.out.height_));  // OUTPUT_H
 
 
-      kernel.SetArgument(12, connect_table_buf);  // connect table
-      kernel.SetArgument(
-        13, static_cast<cl_ushort>(params.in.depth_));  // DEPTH
+    kernel.SetArgument(12, connect_table_buf);  // connect table
+    kernel.SetArgument(
+      13, static_cast<cl_ushort>(params.in.depth_));  // DEPTH
 
-      // We make sure that work group size is multiple of 16
-      // auto global = std::vector<size_t>{params.in.width_, params.in.height_, params.in.depth_};
-      auto local  = std::vector<size_t>{params.out.width_, params.out.height_, 1};
-      auto global = std::vector<size_t>{ params.out.width_, params.out.height_, params.out.depth_ };
+    // We make sure that work group size is multiple of 16
+    // auto global = std::vector<size_t>{params.in.width_, params.in.height_, params.in.depth_};
+    auto local = std::vector<size_t>{ params.out.width_, params.out.height_, 1 };
+    auto global = std::vector<size_t>{ params.out.width_* in_data.size(), params.out.height_, params.out.depth_ };
 
-      assert(local[0]*local[1]*local[2] <= device->device().MaxWorkGroupSize());
+    assert(local[0] * local[1] * local[2] <= device->device().MaxWorkGroupSize());
 
-      // Creates a new CLCudaAPI event to be able to time kernels
-      auto event = CLCudaAPI::Event();
+    // Creates a new CLCudaAPI event to be able to time kernels
+    auto event = CLCudaAPI::Event();
 
-      // Enqueues the kernel and waits for the result.
-      // Note that launching the kernel is always a-synchronous and thus
-      // requires finishing the queue in order to complete the operation.
-      nn_info("## Running the kernel ...");
+    // Enqueues the kernel and waits for the result.
+    // Note that launching the kernel is always a-synchronous and thus
+    // requires finishing the queue in order to complete the operation.
+    nn_info("## Running the kernel ...");
 
-      kernel.Launch(queue, global, local, event.pointer());
-      queue.Finish(event);
+    kernel.Launch(queue, global, local, event.pointer());
+    queue.Finish(event);
 
-      nn_info(" > Took " + to_string(event.GetElapsedTime()) + " ms");
+    nn_info(" > Took " + to_string(event.GetElapsedTime()) + " ms");
 
-      // Upload data GPU -> CPU
-      std::vector<float_t> out(out_data[i].size(), 0);
-      dev_out.Read(queue, out_data[i].size(), &out_data[i][0]);
+    // Upload data GPU -> CPU
+    for (size_t i = 0; i < in_data.size(); ++i) {
+      dev_out.ReadAsync(queue, out_data[0].size(), &out_data[i][0], out_data[0].size()*i);
+    }
 
-      //// FOR DEBUG ONLY
-      //nn_warn("output kernel");
-      //for (size_t j = 0; j < out.size(); ++j) {
-      //  std::cout << out[j] << " ";
-      //}
-      //std::cout << std::endl;
+    //// FOR DEBUG ONLY
+    //nn_warn("output kernel");
+    //for (size_t j = 0; j < out.size(); ++j) {
+    //  std::cout << out[j] << " ";
+    //}
+    //std::cout << std::endl;
 
-      // FOR DEBUG ONLY
-      if (0)
-      {
-        nn_warn("output kernel:\n");
+    // FOR DEBUG ONLY
+    if (0)
+    {
+      nn_warn("output kernel:\n");
+      for (size_t i = 0; i < 2/*out_data.size()*/; ++i) {
         for (size_t j = 0; j < out_data[i].size(); ++j) {
           std::cout << out_data[i][j] << " ";
           if ((j + 1) % 28 == 0)
@@ -165,12 +163,13 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
         }
         std::cout << std::endl;
       }
-
-      // copy back
-      //std::copy(std::begin(out), std::end(out),out_data[i].begin());
-
-      int ii = 10;
     }
+
+    // copy back
+    //std::copy(std::begin(out), std::end(out),out_data[i].begin());
+
+    int ii = 10;
+
 #else
     CNN_UNREFERENCED_PARAMETER(context);
     throw nn_error("Not compiled with OpenCL");

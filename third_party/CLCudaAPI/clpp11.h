@@ -631,9 +631,10 @@ class Buffer {
 
   // Copies from device to host: reading the device buffer a-synchronously
   void ReadAsync(const Queue &queue, const size_t size, T* host, const size_t offset = 0) const {
-    if (access_ == BufferAccess::kWriteOnly) {
-      throw LogicError("Buffer: reading from a write-only buffer");
-    }
+    // mgu
+    //if (access_ == BufferAccess::kWriteOnly) {
+    //  throw LogicError("Buffer: reading from a write-only buffer");
+    //}
     CheckError(clEnqueueReadBuffer(queue(), *buffer_, CL_FALSE, offset*sizeof(T), size*sizeof(T),
                                    host, 0, nullptr, nullptr));
   }

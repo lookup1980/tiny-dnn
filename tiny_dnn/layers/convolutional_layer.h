@@ -353,9 +353,9 @@ class convolutional_layer : public layer {
     ss << "#define STRIDE_H " << params_.h_stride << "\n";
     ss << "#define STRIDE_W " << params_.w_stride << "\n";
     ss << "#define APPLY_BIAS " << params_.has_bias << "\n";
-    ss << "#define OUTPUT_Z " << params_.out.depth_ << "\n";
+//    ss << "#define OUTPUT_Z " << params_.out.depth_ << "\n";
     // TODO(edgar): REVISE THIS
-    ss << "#define ZPAR " << params_.out.depth_ << "\n";
+//    ss << "#define ZPAR " << params_.out.depth_ << "\n";
 
     ss << "#define IS_FULLY_CONNECTED " << int(params_.tbl.is_empty()) << "\n";
 //    ss << "#define KERNEL_D " << params_.weight.depth_ << "\n";
