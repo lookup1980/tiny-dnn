@@ -78,10 +78,10 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
       connect_table.end());
 
 
-    auto dev_W =
-      CLCudaAPI::Buffer<float_t>(ctx, queue, W[0].begin(), W[0].end());
-    auto dev_bias =
-      CLCudaAPI::Buffer<float_t>(ctx, queue, bias[0].begin(), bias[0].end());
+    auto dev_W = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kReadOnly, W[0].size());
+    dev_W.WriteAsync(queue, W[0].size(), &W[0][0], 0);
+    auto dev_bias = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kReadOnly, bias[0].size());
+    dev_bias.WriteAsync(queue, bias[0].size(), &bias[0][0], 0);
 
     auto dev_in = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kReadOnly, in_data.size()*in_data[0].size());
     auto dev_out = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kWriteOnly, out_data.size()*out_data[0].size());
@@ -91,13 +91,11 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
     }
 
     kernel.SetArgument(0, dev_in);    // image_data
-    kernel.SetArgument(1, 0);         // image_offset
     kernel.SetArgument(2, dev_W);     // kernel_data
     kernel.SetArgument(3, 0);         // kernel_offset
     kernel.SetArgument(4, dev_bias);  // bias
     kernel.SetArgument(5, 0);         // bias_offset
     kernel.SetArgument(6, dev_out);   // convolved_image
-    kernel.SetArgument(7, 0);         // convolved_image_offset
 
     kernel.SetArgument(8, static_cast<cl_ushort>(params.in.width_));  // WIDTH
     kernel.SetArgument(9,
@@ -116,22 +114,44 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
     // We make sure that work group size is multiple of 16
     // auto global = std::vector<size_t>{params.in.width_, params.in.height_, params.in.depth_};
     auto local = std::vector<size_t>{ params.out.width_, params.out.height_, 1 };
-    auto global = std::vector<size_t>{ params.out.width_* in_data.size(), params.out.height_, params.out.depth_ };
-
     assert(local[0] * local[1] * local[2] <= device->device().MaxWorkGroupSize());
 
-    // Creates a new CLCudaAPI event to be able to time kernels
-    auto event = CLCudaAPI::Event();
+    {
+      assert(in_data.size() == out_data.size());
+      const int sample_sqrt = sqrtf(in_data.size());
 
-    // Enqueues the kernel and waits for the result.
-    // Note that launching the kernel is always a-synchronous and thus
-    // requires finishing the queue in order to complete the operation.
-    nn_info("## Running the kernel ...");
+      // Creates a new CLCudaAPI event to be able to time kernels
+      auto event = CLCudaAPI::Event();
+      nn_info("## Running the kernel ...");
 
-    kernel.Launch(queue, global, local, event.pointer());
-    queue.Finish(event);
+      auto global = std::vector<size_t>{ params.out.width_* sample_sqrt, params.out.height_ * sample_sqrt, params.out.depth_ };
 
-    nn_info(" > Took " + to_string(event.GetElapsedTime()) + " ms");
+      kernel.SetArgument(1, 0);         // image_offset
+      kernel.SetArgument(7, 0);         // convolved_image_offset
+
+      // Enqueues the kernel and waits for the result.
+      // Note that launching the kernel is always a-synchronous and thus
+      // requires finishing the queue in order to complete the operation.
+
+      kernel.Launch(queue, global, local, event.pointer());
+      queue.Finish(event);
+
+      const int sample_finished = sample_sqrt * sample_sqrt;
+      if (sample_finished != in_data.size())
+      {
+        const int sample_rest = in_data.size() - sample_finished;
+        assert(sample_rest > 0);
+        global = std::vector<size_t>{ params.out.width_* sample_rest, params.out.height_, params.out.depth_ };
+
+        kernel.SetArgument(1, in_data[0].size()*sample_finished);         // image_offset
+        kernel.SetArgument(7, out_data[0].size()*sample_finished);         // convolved_image_offset
+
+        kernel.Launch(queue, global, local, event.pointer());
+        queue.Finish(event);
+      }
+
+      nn_info(" > Took " + to_string(event.GetElapsedTime()) + " ms");
+    }
 
     // Upload data GPU -> CPU
     for (size_t i = 0; i < in_data.size(); ++i) {
