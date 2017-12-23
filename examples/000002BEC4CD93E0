@@ -1,3 +1,18 @@
+#define Dtype float
+#define Dtype4 float4
+#define int_tp int
+#define CONCAT(A,B) A##_##B
+#define TEMPLATE(name,type) CONCAT(name,type)
+#define MULTI2
+#define KERNEL_H 5
+#define KERNEL_W 5
+#define CHANNELS 1920
+#define STRIDE_H 1
+#define STRIDE_W 1
+#define APPLY_BIAS 1
+#define IS_FULLY_CONNECTED 1
+#define KERNEL_W_4 1
+#define KERNEL_W_MOD4 1
 #ifndef __OPENCL_VERSION__
 #include "header.cl"
 #endif
@@ -119,7 +134,7 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp image_offset,
 
 #ifdef MULTI2
 __kernel void CFMulti(__global Dtype* image_data, int_tp IMAGE_OFFSET,
-  __constant Dtype* kernel_data, int_tp KERNEL_OFFSET,
+  __global Dtype* kernel_data, int_tp KERNEL_OFFSET,
   __constant Dtype* bias, const int_tp bias_offset,
   __global Dtype* convolved_image, const int_tp convolved_image_offset,
   const ushort WIDTH,
@@ -157,11 +172,12 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp IMAGE_OFFSET,
     for (int_tp y = 0; y < KERNEL_H; y++)
     {
       __global Dtype* image_dataPtrFloat = image_data + image_offset + (WIDTH * (outputY+y));
+      __global Dtype* kernel_dataPtrFloat = kernel_data + kernel_offset + (KERNEL_W * y);
 
 #pragma unroll
       for (int_tp x = 0; x < KERNEL_W; x++)
       {
-        totalSum += *(image_dataPtrFloat + x) * kernel_data[kernel_offset + (KERNEL_W * y) + x];
+        totalSum += *(image_dataPtrFloat + x) * *(kernel_dataPtrFloat + x);
       }
     }
   }
