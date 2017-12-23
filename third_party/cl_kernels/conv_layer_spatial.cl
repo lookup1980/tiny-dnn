@@ -118,8 +118,8 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp image_offset,
 #endif
 
 #ifdef MULTI2
-__kernel void CFMulti(__global Dtype* image_data, int_tp image_offset,
-  __global Dtype* kernel_data, int_tp kernel_offset,
+__kernel void CFMulti(__global Dtype* image_data, int_tp IMAGE_OFFSET,
+  __global Dtype* kernel_data, int_tp KERNEL_OFFSET,
   __global Dtype* bias, const int_tp bias_offset,
   __global Dtype* convolved_image, const int_tp convolved_image_offset,
   const ushort WIDTH,
@@ -152,10 +152,12 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp image_offset,
       }
     }
 
+	const int_tp image_offset = (WIDTH * HEIGHT * DEPTH * sample_offset) + (WIDTH * HEIGHT * in_depth_idx) + outputX + IMAGE_OFFSET;
+	const int_tp kernel_offset = (KERNEL_W * KERNEL_H * DEPTH * out_depth_idx) + (KERNEL_W * KERNEL_H * in_depth_idx) + KERNEL_OFFSET;
     for (int_tp y = 0; y < KERNEL_H; y++)
     {
-      __global Dtype* image_dataPtrFloat = image_data + (WIDTH * HEIGHT * DEPTH * sample_offset) + (WIDTH * HEIGHT * in_depth_idx) + (WIDTH * (outputY+y)) + outputX + image_offset;
-      __global Dtype* kernel_dataPtrFloat = kernel_data + (KERNEL_W * KERNEL_H * DEPTH * out_depth_idx) + (KERNEL_W * KERNEL_H * in_depth_idx) + (KERNEL_W * y) + kernel_offset;
+      __global Dtype* image_dataPtrFloat = image_data + image_offset + (WIDTH * (outputY+y));
+      __global Dtype* kernel_dataPtrFloat = kernel_data + kernel_offset + (KERNEL_W * y);
 
       for (int_tp x = 0; x < KERNEL_W; x++)
       {
