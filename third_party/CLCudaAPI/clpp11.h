@@ -755,6 +755,9 @@ class Kernel {
   void SetArgument(const size_t index, Buffer<T> &value) {
     SetArgument(index, value());
   }
+  void SetArgument(const size_t index, const size_t arg_size, const void *arg_value) {
+    CheckError(clSetKernelArg(*kernel_, static_cast<cl_uint>(index), arg_size, arg_value));
+  }
 
   // Sets all arguments in one go using parameter packs. Note that this overwrites previously set
   // arguments using 'SetArgument' or 'SetArguments'.
