@@ -339,8 +339,8 @@ class convolutional_layer : public layer {
   std::string kernel_file() const override {
     //return std::string(
     //  "../tiny_cnn/core/kernels/cl_kernels/conv_layer_spatial.cl");
-    return std::string(
-      R"(D:\code\tiny-dnn\third_party\cl_kernels\conv_layer_spatial.cl)");
+    std::string kernel_name = "conv_layer_spatial.cl";
+    return get_kernel_path(kernel_name);
   }
 
   // TODO(edgar): is it really needed?

@@ -481,4 +481,34 @@ struct are_all<checker, T0, Ts...>
 
 template <typename... Ts>
 using are_all_xexpr = are_all<is_xexpression, Ts...>;
+
+#ifdef _WIN32
+#include <io.h> 
+#define access    _access_s
+#else
+#include <unistd.h>
+#endif
+
+bool file_exists(const std::string &Filename)
+{
+  return access(Filename.c_str(), 0) == 0;
+}
+
+std::string get_kernel_path(const std::string &name)
+{
+  std::vector<std::string> paths = {"./", "../third_party/cl_kernels/"};
+  for (auto it = paths.begin(); it != paths.end(); ++it)
+  {
+    auto full = *it + name;
+    if (file_exists(full))
+    {
+      return full;
+    }
+  }
+
+  nn_error(name + ": invalid kernel name!\n");
+
+  return "";
+}
+
 }  // namespace tiny_dnn
