@@ -52,6 +52,13 @@ class fully_connected_layer : public layer {
 
   size_t fan_out_size() const override { return params_.out_size_; }
 
+  std::string kernel_file() const override {
+    std::string kernel_name = "fully_connected_layer.cl";
+    return get_kernel_path(kernel_name);
+  }
+
+  std::string kernel_header() const override { return std::string(); }
+
   std::vector<index3d<size_t>> in_shape() const override {
     if (params_.has_bias_) {
       return {index3d<size_t>(params_.in_size_, 1, 1),
@@ -106,18 +113,17 @@ class fully_connected_layer : public layer {
     core::OpKernelConstruction ctx =
       core::OpKernelConstruction(layer::device(), &params_);
 
+    if (backend_type == core::backend_t::opencl) {
+      ProgramManager::getInstance().registerOp(*this);
+    }
+
     if (backend_type == core::backend_t::internal ||
         backend_type == core::backend_t::avx ||
-        backend_type == core::backend_t::nnpack) {
+        backend_type == core::backend_t::nnpack ||
+        backend_type == core::backend_t::opencl) {
       kernel_fwd_.reset(new FullyConnectedOp(ctx));
       kernel_back_.reset(new FullyConnectedGradOp(ctx));
 	}
-	else if (backend_type == core::backend_t::opencl) {
-	  //kernel_fwd_.reset(new Conv2dOpenCLForwardOp(ctx));
-	  //kernel_back_.reset(new Conv2dOpenCLBackwardOp(ctx));
-    kernel_fwd_.reset(new FullyConnectedOp(ctx));
-    kernel_back_.reset(new FullyConnectedGradOp(ctx));
-  }
 	else {
       throw nn_error("Not supported engine: " + to_string(backend_type));
     }

@@ -18,6 +18,7 @@ inline void fully_connected_op_opencl(const tensor_t &in_data,
                                         tensor_t &out_data,
                                         const core::fully_params &params,
                                         const bool layer_parallelize) {
+#if defined(USE_OPENCL) || defined(USE_CUDA)
   for_i(layer_parallelize, in_data.size(), [&](size_t sample) {
     const vec_t &in = in_data[sample];
     vec_t &out      = out_data[sample];
@@ -33,6 +34,7 @@ inline void fully_connected_op_opencl(const tensor_t &in_data,
       }
     }
   });
+#endif
 }
 
 inline void fully_connected_op_opencl(const tensor_t &prev_out,
@@ -43,6 +45,7 @@ inline void fully_connected_op_opencl(const tensor_t &prev_out,
                                         tensor_t &prev_delta,
                                         const core::fully_params &params,
                                         const bool layer_parallelize) {
+#if defined(USE_OPENCL) || defined(USE_CUDA)
   for (size_t sample = 0; sample < prev_out.size(); sample++) {
     for (size_t c = 0; c < params.in_size_; c++) {
       // propagate delta to previous layer
@@ -68,6 +71,7 @@ inline void fully_connected_op_opencl(const tensor_t &prev_out,
       }
     });
   }
+#endif
 }
 
 }  // namespace kernels

@@ -37,6 +37,12 @@ class tanh_layer : public activation_layer {
     }
   }
 
+  std::string kernel_file() const override {
+    return std::string("empty_kernel_str");
+  }
+
+  std::string kernel_header() const override { return std::string(); }
+
   std::pair<float_t, float_t> scale() const override {
     return std::make_pair(float_t(-0.8), float_t(0.8));
   }

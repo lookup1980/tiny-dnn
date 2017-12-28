@@ -104,11 +104,9 @@ class layer : public node {
 
   core::backend_t engine() const { return backend_type_; }
 
-  virtual std::string kernel_file() const {
-    return std::string("empty_kernel_str");
-  }
+  virtual std::string kernel_file() const = 0;
 
-  virtual std::string kernel_header() const { return std::string(); }
+  virtual std::string kernel_header() const = 0;
 
   virtual void createOp() {}
 

@@ -82,6 +82,12 @@ class recurrent_cell_layer : public layer {
     init_backend(std::move(other.engine()));
   }
 
+  std::string kernel_file() const override  {
+    return std::string("empty_kernel_str");
+  }
+
+  std::string kernel_header() const override  { return std::string(); }
+
   size_t fan_in_size(size_t i) const override { return in_shape()[i].width_; }
 
   size_t fan_out_size(size_t i) const override { return in_shape()[i].height_; }

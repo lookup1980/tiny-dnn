@@ -42,6 +42,12 @@ class relu_layer : public activation_layer {
     return std::make_pair(float_t(0.1), float_t(0.9));
   }
 
+  std::string kernel_file() const override {
+    return std::string("empty_kernel_str");
+  }
+
+  std::string kernel_header() const override { return std::string(); }
+
   friend struct serialization_buddy;
 };
 

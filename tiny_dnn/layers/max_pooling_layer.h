@@ -115,6 +115,7 @@ class max_pooling_layer : public layer {
 
   size_t fan_out_size() const override { return 1; }
 
+
   void forward_propagation(const std::vector<tensor_t *> &in_data,
                            std::vector<tensor_t *> &out_data) override {
     // forward convolutional op context
@@ -150,9 +151,11 @@ class max_pooling_layer : public layer {
   std::string layer_type() const override { return std::string("max-pool"); }
 
   std::string kernel_file() const override {
-//    return std::string("../tiny_cnn/core/kernels/cl_kernels/pooling.cl");
-    return std::string(R"(D:\code\tiny-dnn\third_party\cl_kernels\pooling.cl)");
+    std::string kernel_name = "pooling.cl";
+    return get_kernel_path(kernel_name);
   }
+
+  std::string kernel_header() const override { return std::string(); }
 
   std::pair<size_t, size_t> pool_size() const {
     return std::make_pair(params_.pool_size_x, params_.pool_size_y);

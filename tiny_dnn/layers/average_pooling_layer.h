@@ -208,6 +208,12 @@ class average_pooling_layer : public partial_connected_layer {
 
   std::string layer_type() const override { return "ave-pool"; }
 
+  std::string kernel_file() const override {
+    return std::string("empty_kernel_str");
+  }
+
+  std::string kernel_header() const override { return std::string(); }
+
   void forward_propagation(const std::vector<tensor_t *> &in_data,
                            std::vector<tensor_t *> &out_data) override {
     tiny_average_pooling_kernel(parallelize_, in_data, out_data, out_,
