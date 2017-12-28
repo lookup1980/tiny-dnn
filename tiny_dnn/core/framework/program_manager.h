@@ -233,7 +233,9 @@ class ProgramManager {
 
  protected:
   ProgramManager()
+#if defined(USE_OPENCL) || defined(USE_CUDA)
     :device_(device_t::GPU, 0, 0)
+#endif
   {}
   ProgramManager(const ProgramManager &) = delete;
   ProgramManager &operator=(const ProgramManager &) = delete;
