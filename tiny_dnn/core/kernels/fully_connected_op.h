@@ -12,6 +12,7 @@
 #include "tiny_dnn/core/kernels/fully_connected_op_avx.h"
 #include "tiny_dnn/core/kernels/fully_connected_op_internal.h"
 #include "tiny_dnn/core/kernels/fully_connected_op_nnpack.h"
+#include "tiny_dnn/core/kernels/fully_connected_op_opencl.h"
 
 namespace tiny_dnn {
 
