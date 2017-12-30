@@ -85,8 +85,11 @@ class fully_connected_layer : public layer {
                            std::vector<tensor_t *> &out_data) override {
     // forward fully connected op context
     fwd_ctx_.set_in_out(in_data, out_data);
+    fwd_ctx_.setParams(&params_);
     fwd_ctx_.setParallelize(layer::parallelize());
     fwd_ctx_.setEngine(layer::engine());
+    fwd_ctx_.setDevice(layer::device());
+    fwd_ctx_.setLayer(this);
 
     // launch fully connected kernel
     kernel_fwd_->compute(fwd_ctx_);
@@ -98,8 +101,11 @@ class fully_connected_layer : public layer {
                         std::vector<tensor_t *> &in_grad) override {
     // backward fully connected op context
     bwd_ctx_.set_in_out(in_data, out_data, out_grad, in_grad);
+    bwd_ctx_.setParams(&params_);
     bwd_ctx_.setParallelize(layer::parallelize());
     bwd_ctx_.setEngine(layer::engine());
+    bwd_ctx_.setDevice(layer::device());
+    bwd_ctx_.setLayer(this);
 
     // launch fully connected kernel
     kernel_back_->compute(bwd_ctx_);

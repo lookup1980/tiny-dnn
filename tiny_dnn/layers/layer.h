@@ -109,7 +109,7 @@ class layer : public node {
   virtual std::string kernel_header() const = 0;
   std::string kernel_string()
   {
-    if (kernel_string_ == "")
+    if (kernel_string_.empty())
     {
       // Define op kernel string and instantiate program
       // TODO(edgar): load from `cl_kernels` dir.

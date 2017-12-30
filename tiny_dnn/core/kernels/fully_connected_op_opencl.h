@@ -12,32 +12,97 @@
 namespace tiny_dnn {
 namespace kernels {
 
-inline void fully_connected_op_opencl(const tensor_t &in_data,
+inline void fully_connected_op_opencl(core::OpKernelContext &context,
+                                        const tensor_t &in_data,
                                         const vec_t &W,
                                         const vec_t &bias,
                                         tensor_t &out_data,
                                         const core::fully_params &params,
                                         const bool layer_parallelize) {
 #if defined(USE_OPENCL) || defined(USE_CUDA)
-  for_i(layer_parallelize, in_data.size(), [&](size_t sample) {
-    const vec_t &in = in_data[sample];
-    vec_t &out      = out_data[sample];
+  // retrieve program from register
+  // mgu: kernel_string may be a big string, and may cause performance problem
+  CLCudaAPI::Program program = ProgramManager::getInstance().program(
+    Program(context.device(), context.Layer()->layer_type(), std::move(context.Layer()->kernel_string())));
+  nn_warn("Got Program");
 
-    for (size_t i = 0; i < params.out_size_; i++) {
-      out[i] = float_t{0};
-      for (size_t c = 0; c < params.in_size_; c++) {
-        out[i] += W[c * params.out_size_ + i] * in[c];
-      }
+  // Creates the kernel from the compiled program and sets the three
+  // arguments.
+  // Note that the indices of the arguments have to be set according to
+  // their
+  // order in the kernel.
+  printCLPrograms(program);
+  auto kernel = CLCudaAPI::Kernel(program, "FullyConnected");
+  nn_warn("Got Kernel");
 
-      if (params.has_bias_) {
-        out[i] += bias[i];
+  tiny_dnn::Device *device = context.device();
+  CLCudaAPI::Context ctx = context.device()->context();
+  CLCudaAPI::Queue queue = context.device()->queue();
+
+  auto dev_W = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kReadOnly, W.size());
+  dev_W.WriteAsync(queue, W.size(), &W[0], 0);
+  auto dev_bias = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kReadOnly, bias.size());
+  dev_bias.WriteAsync(queue, bias.size(), &bias[0], 0);
+
+  auto dev_in = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kReadOnly, in_data.size()*in_data[0].size());
+  auto dev_out = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kWriteOnly, out_data.size()*out_data[0].size());
+
+  for (size_t i = 0; i < in_data.size(); ++i) {
+    dev_in.WriteAsync(queue, in_data[0].size(), &in_data[i][0], in_data[0].size()*i);
+  }
+
+  kernel.SetArgument(0, dev_in);    // image_data
+  kernel.SetArgument(1, 0);         // image_offset
+  kernel.SetArgument(2, dev_W);     // kernel_data
+  kernel.SetArgument(3, 0);         // kernel_offset
+  kernel.SetArgument(4, dev_bias);  // bias
+  kernel.SetArgument(5, 0);         // bias_offset
+  kernel.SetArgument(6, dev_out);   // convolved_image
+  kernel.SetArgument(7, 0);         // convolved_image_offset
+
+  auto local = std::vector<size_t>{ params.out_size_, 1 };
+  assert(local[0] * local[1] <= device->device().MaxWorkGroupSize());
+
+  {
+    assert(in_data.size() == out_data.size());
+
+    // Creates a new CLCudaAPI event to be able to time kernels
+    auto event = CLCudaAPI::Event();
+    nn_info("## Running the kernel ...");
+
+    auto global = std::vector<size_t>{ params.out_size_, in_data.size() };
+
+    // Enqueues the kernel and waits for the result.
+    // Note that launching the kernel is always a-synchronous and thus
+    // requires finishing the queue in order to complete the operation.
+    kernel.Launch(queue, global, local, event.pointer());
+    queue.Finish(event);
+
+    nn_info(" > Took " + to_string(event.GetElapsedTime()) + " ms");
+  }
+
+  // Upload data GPU -> CPU
+  for (size_t i = 0; i < in_data.size(); ++i) {
+    dev_out.ReadAsync(queue, out_data[0].size(), &out_data[i][0], out_data[0].size()*i);
+  }
+
+  // FOR DEBUG ONLY
+  if (0)
+  {
+    nn_warn("output kernel:\n");
+    for (size_t i = 0; i < 16/*out_data.size()*/; ++i) {
+      for (size_t j = 0; j < out_data[i].size(); ++j) {
+        std::cout << out_data[i][j] << " ";
       }
+      std::cout << std::endl;
     }
-  });
+  }
+
 #endif
 }
 
-inline void fully_connected_op_opencl(const tensor_t &prev_out,
+inline void fully_connected_op_opencl(core::OpKernelContext &context,
+                                        const tensor_t &prev_out,
                                         const vec_t &W,
                                         tensor_t &dW,
                                         tensor_t &db,
