@@ -57,7 +57,14 @@ class fully_connected_layer : public layer {
     return get_kernel_path(kernel_name);
   }
 
-  std::string kernel_header() const override { return std::string(); }
+  std::string kernel_header() const override { 
+    std::stringstream ss;
+    ss << "#define OUTPUT_SIZE " << params_.out_size_ << "\n";
+    ss << "#define INPUT_SIZE " << params_.in_size_ << "\n";
+    ss << "#define HAS_BIAS " << params_.has_bias_ << "\n";
+
+    return ss.str();
+  }
 
   std::vector<index3d<size_t>> in_shape() const override {
     if (params_.has_bias_) {

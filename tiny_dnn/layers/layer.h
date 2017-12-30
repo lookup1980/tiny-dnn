@@ -70,7 +70,8 @@ class layer : public node {
       in_channels_(in_type.size()),
       out_channels_(out_type.size()),
       in_type_(in_type),
-      out_type_(out_type) {
+      out_type_(out_type),
+      kernel_string_("") {
     weight_init_ = std::make_shared<weight_init::xavier>();
     bias_init_   = std::make_shared<weight_init::constant>();
     trainable_   = true;
@@ -105,8 +106,45 @@ class layer : public node {
   core::backend_t engine() const { return backend_type_; }
 
   virtual std::string kernel_file() const = 0;
-
   virtual std::string kernel_header() const = 0;
+  std::string kernel_string()
+  {
+    if (kernel_string_ == "")
+    {
+      // Define op kernel string and instantiate program
+      // TODO(edgar): load from `cl_kernels` dir.
+      // std::ifstream cl_file("opencl_hello_world.cl");
+      std::cout << "Kernel file name: " << kernel_file() << std::endl;
+      std::ifstream cl_file(kernel_file());
+      std::string program_tail{ std::istreambuf_iterator<char>(cl_file),
+        std::istreambuf_iterator<char>() };
+      // fixed kernel params
+      std::string program_head =
+        std::string("#define Dtype float\n") +
+        std::string("#define Dtype4 float4\n") +
+        std::string("#define int_tp int\n") +
+        std::string("#define CONCAT(A,B) A##_##B\n") +
+        std::string("#define TEMPLATE(name,type) CONCAT(name,type)\n");
+
+      // per layer params
+      program_head += kernel_header();
+
+      std::cout << kernel_header() << std::endl;
+
+      kernel_string_ = std::string{ program_head } +
+        std::string{ program_tail };
+
+      // write the shader to file - mgu
+      char filename[32];
+      sprintf(filename, "%016llX", kernel_string_.c_str());
+      std::ofstream myfile;
+      myfile.open(filename);
+      myfile << kernel_string_;
+      myfile.close();
+    }
+
+    return kernel_string_;
+  }
 
   virtual void createOp() {}
 
@@ -771,6 +809,8 @@ class layer : public node {
   std::vector<tensor_t *> bwd_in_grad_;
   std::vector<tensor_t *> bwd_out_data_;
   std::vector<tensor_t *> bwd_out_grad_;
+
+  std::string kernel_string_;
 
   /* @brief Allocates the necessary edge memory in a specific
    * incoming connection.

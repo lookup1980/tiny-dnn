@@ -78,14 +78,15 @@ namespace tiny_dnn {
 */
   class Program {
   public:
-    explicit Program(const Device *device, const std::string &type)
-      : device_(device), layer_type_(type) {
+    explicit Program(const Device *device, const std::string &type, const std::string &kernel_string)
+      : device_(device), layer_type_(type), kernel_string_(kernel_string) {
     }
 
     // Returns the device associated to the program
     const Device *device() const { return device_; }
 
     const std::string layer_type() const { return layer_type_; }
+    const std::string kernel_string() const { return kernel_string_; }
     
     bool operator==(const Program &p) const {
       if (p.device() == this->device() &&
@@ -98,6 +99,7 @@ namespace tiny_dnn {
   private:
     const Device *device_;
     const std::string  layer_type_;
+    const std::string  kernel_string_;
   };
 
   /* Hash function to store Programs in the register.
@@ -117,7 +119,8 @@ namespace tiny_dnn {
         std::hash<bool>()(p.device()->hasCLCudaAPI()) ^
         std::hash<int>()(p.device()->platformId()) ^
         std::hash<int>()(p.device()->deviceId()) ^
-        std::hash<std::string>()(p.layer_type()));
+        std::hash<std::string>()(p.layer_type()) ^
+        std::hash<std::string>()(p.kernel_string()));
     }
   };
 

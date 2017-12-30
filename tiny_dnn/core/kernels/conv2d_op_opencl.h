@@ -45,8 +45,9 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
 
     context.Layer()->layer_type();
     // retrieve program from register
+    // mgu: kernel_string may be a big string, and may cause performance problem
     CLCudaAPI::Program program = ProgramManager::getInstance().program(
-      Program(context.device(), context.Layer()->layer_type()));
+      Program(context.device(), context.Layer()->layer_type(), std::move(context.Layer()->kernel_string())));
     nn_warn("Got Program");
 
     // Creates the kernel from the compiled program and sets the three

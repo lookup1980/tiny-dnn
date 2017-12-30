@@ -496,7 +496,7 @@ bool file_exists(const std::string &Filename)
 
 std::string get_kernel_path(const std::string &name)
 {
-  std::vector<std::string> paths = {"./", "../third_party/cl_kernels/"};
+  std::vector<std::string> paths = {"./", "../third_party/cl_kernels/", "../../third_party/cl_kernels/" };
   for (auto it = paths.begin(); it != paths.end(); ++it)
   {
     auto full = *it + name;

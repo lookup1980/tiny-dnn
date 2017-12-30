@@ -132,47 +132,16 @@ class ProgramManager {
 	  CLCudaAPI::Context context_ = ProgramManager::device_.context();
 
 	  // check if previous program was build with this
-	  // Devce and Layer.
-	  Program key_program(&(ProgramManager::device_), layer.layer_type());
+	  // Device and Layer.
+	  Program key_program(&(ProgramManager::device_), layer.layer_type(), std::move(layer.kernel_string()));
 
-	  auto iter = programs_.find(key_program);
-	  if (iter != programs_.end()) {
-	  nn_warn("Program already registered.\n");
-	  return;
-	  }
+    auto iter = programs_.find(key_program);
+    if (iter != programs_.end()) {
+      nn_warn("Program already registered.\n");
+      return;
+    }
 
-	  // Define op kernel string and instantiate program
-	  // TODO(edgar): load from `cl_kernels` dir.
-	  // std::ifstream cl_file("opencl_hello_world.cl");
-    std::cout << "Kernel file name: " << layer.kernel_file() << std::endl;
-	  std::ifstream cl_file(layer.kernel_file());
-	  std::string program_tail{std::istreambuf_iterator<char>(cl_file),
-	  std::istreambuf_iterator<char>()};
-	  // fixed kernel params
-	  std::string program_head =
-	  std::string("#define Dtype float\n") +
-	  std::string("#define Dtype4 float4\n") +
-	  std::string("#define int_tp int\n") +
-	  std::string("#define CONCAT(A,B) A##_##B\n") +
-	  std::string("#define TEMPLATE(name,type) CONCAT(name,type)\n");
-
-	  // per layer params
-	  program_head += layer.kernel_header();
-
-	  std::cout << layer.kernel_header() << std::endl;
-
-	  std::string program_string = std::string{program_head} +
-	  std::string{program_tail};
-
-    // write the shader to file - mgu
-    char filename[32];
-    sprintf(filename, "%016llX", program_string.c_str());
-    std::ofstream myfile;
-    myfile.open(filename);
-    myfile << program_string;
-    myfile.close();
-
-	  auto program = CLCudaAPI::Program(context_, std::move(program_string));
+	  auto program = CLCudaAPI::Program(context_, std::move(layer.kernel_string()));
 
 	  /*
 	  * Builds this program and checks for any compilation errors.
