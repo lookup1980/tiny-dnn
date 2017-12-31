@@ -14,6 +14,9 @@
 
 #include "tiny_dnn/layers/partial_connected_layer.h"
 #include "tiny_dnn/util/util.h"
+#include "tiny_dnn/core/kernels/average_pooling_op_opencl.h"
+
+
 
 #ifdef DNN_USE_IMAGE_API
 #include "tiny_dnn/util/image.h"
@@ -121,18 +124,21 @@ class average_pooling_layer : public partial_connected_layer {
   average_pooling_layer(size_t in_width,
                         size_t in_height,
                         size_t in_channels,
-                        size_t pool_size)
+                        size_t pool_size,
+                        core::backend_t backend_type = core::default_engine())
     : average_pooling_layer(in_width,
                             in_height,
                             in_channels,
                             pool_size,
-                            (in_height == 1 ? 1 : pool_size)) {}
+                            (in_height == 1 ? 1 : pool_size),
+                            backend_type) {}
 
   average_pooling_layer(const shape3d &in_shape,
                         size_t pool_size,
-                        size_t stride)
+                        size_t stride,
+                        core::backend_t backend_type = core::default_engine())
     : average_pooling_layer(
-        in_shape.width_, in_shape.width_, in_shape.depth_, pool_size, stride) {}
+        in_shape.width_, in_shape.width_, in_shape.depth_, pool_size, stride, backend_type) {}
 
   /**
    * @param in_width     [in] width of input image
@@ -146,7 +152,8 @@ class average_pooling_layer : public partial_connected_layer {
                         size_t in_height,
                         size_t in_channels,
                         size_t pool_size,
-                        size_t stride)
+                        size_t stride,
+                        core::backend_t backend_type = core::default_engine())
     : average_pooling_layer(in_width,
                             in_height,
                             in_channels,
@@ -154,7 +161,8 @@ class average_pooling_layer : public partial_connected_layer {
                             (in_height == 1 ? 1 : pool_size),
                             stride,
                             stride,
-                            padding::valid) {}
+                            padding::valid,
+                            backend_type) {}
 
   /**
    * @param in_width     [in] width of input image
@@ -175,7 +183,8 @@ class average_pooling_layer : public partial_connected_layer {
                         size_t pool_size_y,
                         size_t stride_x,
                         size_t stride_y,
-                        padding pad_type = padding::valid)
+                        padding pad_type = padding::valid,
+                        core::backend_t backend_type = core::default_engine())
     : Base(in_width * in_height * in_channels,
            conv_out_length(in_width, pool_size_x, stride_x, pad_type) *
              conv_out_length(in_height, pool_size_y, stride_y, pad_type) *
@@ -198,6 +207,11 @@ class average_pooling_layer : public partial_connected_layer {
     }
 
     init_connection(pool_size_x, pool_size_y);
+
+    layer::set_backend_type(backend_type);
+    if (backend_type == core::backend_t::opencl) {
+      ProgramManager::getInstance().registerOp(*this);
+    }
   }
 
   std::vector<index3d<size_t>> in_shape() const override {
@@ -209,24 +223,47 @@ class average_pooling_layer : public partial_connected_layer {
   std::string layer_type() const override { return "ave-pool"; }
 
   std::string kernel_file() const override {
-    return std::string("empty_kernel_str");
+    std::string kernel_name = "average_pooling_layer.cl";
+    return get_kernel_path(kernel_name);
   }
 
-  std::string kernel_header() const override { return std::string(); }
+  std::string kernel_header() const override {
+    std::stringstream ss;
+    //ss << "#define OUTPUT_SIZE " << params_.out_size_ << "\n";
+    //ss << "#define INPUT_SIZE " << params_.in_size_ << "\n";
+    //ss << "#define HAS_BIAS " << params_.has_bias_ << "\n";
+
+    return ss.str();
+  }
 
   void forward_propagation(const std::vector<tensor_t *> &in_data,
                            std::vector<tensor_t *> &out_data) override {
-    tiny_average_pooling_kernel(parallelize_, in_data, out_data, out_,
-                                Base::scale_factor_, Base::out2wi_);
+    if (layer::engine() == core::backend_t::opencl) {
+      kernels::tiny_average_pooling_kernel_opencl(parallelize_, in_data, out_data, out_,
+        Base::scale_factor_, Base::out2wi_);
+    }
+    else
+    {
+      tiny_average_pooling_kernel(parallelize_, in_data, out_data, out_,
+        Base::scale_factor_, Base::out2wi_);
+    }
   }
 
   void back_propagation(const std::vector<tensor_t *> &in_data,
                         const std::vector<tensor_t *> &out_data,
                         std::vector<tensor_t *> &out_grad,
                         std::vector<tensor_t *> &in_grad) override {
-    tiny_average_pooling_back_kernel(
-      parallelize_, in_data, out_data, out_grad, in_grad, in_,
-      Base::scale_factor_, Base::weight2io_, Base::in2wo_, Base::bias2out_);
+    if (layer::engine() == core::backend_t::opencl) {
+      kernels::tiny_average_pooling_back_kernel_opencl(
+        parallelize_, in_data, out_data, out_grad, in_grad, in_,
+        Base::scale_factor_, Base::weight2io_, Base::in2wo_, Base::bias2out_);
+    }
+    else
+    {
+      tiny_average_pooling_back_kernel(
+        parallelize_, in_data, out_data, out_grad, in_grad, in_,
+        Base::scale_factor_, Base::weight2io_, Base::in2wo_, Base::bias2out_);
+    }
   }
 
   std::pair<size_t, size_t> pool_size() const {
