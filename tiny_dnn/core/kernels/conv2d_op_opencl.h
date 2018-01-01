@@ -72,7 +72,7 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
     else
     {
       connect_table.resize(params.tbl.cols_ * params.tbl.rows_);
-      std::transform(connect_table.begin(), connect_table.end(), params.tbl.connected_.begin(), 
+      std::transform(params.tbl.connected_.begin(), params.tbl.connected_.end(), connect_table.begin(), 
         [](auto a) {return a ? 1 : 0; });
     }
     auto connect_table_buf = CLCudaAPI::Buffer<cl_uchar>(ctx, queue, connect_table.begin(),

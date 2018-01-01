@@ -349,7 +349,7 @@ class convolutional_layer : public layer {
     ss << "#define MULTI2\n";
     ss << "#define KERNEL_H " << params_.weight.height_ << "\n";
     ss << "#define KERNEL_W " << params_.weight.width_ << "\n";
-    ss << "#define CHANNELS " << params_.weight.depth_ << "\n";
+    //ss << "#define CHANNELS " << params_.weight.depth_ << "\n";
     ss << "#define STRIDE_H " << params_.h_stride << "\n";
     ss << "#define STRIDE_W " << params_.w_stride << "\n";
     ss << "#define APPLY_BIAS " << params_.has_bias << "\n";

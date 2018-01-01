@@ -148,7 +148,7 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp IMAGE_OFFSET,
     if (!IS_FULLY_CONNECTED) {
       uchar connected = connect_table[in_depth_idx*OUTPUT_D + out_depth_idx];
       if (!connected) {
-        return;
+        continue;
       }
     }
 
