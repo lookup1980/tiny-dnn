@@ -55,6 +55,27 @@ inline void tiny_average_pooling_kernel(
 
     assert(out.size() == out2wi.size());
   });
+
+  // FOR DEBUG ONLY
+  if (0)
+  {
+    nn_warn("output kernel:\n");
+    std::cout << "CPU output: " << std::endl;
+    for (size_t s = 0; s < 1/*out_data.size()*/; ++s) {
+      for (size_t j = 0; j < out_dim.area()*out_dim.depth_; ++j) {
+        std::cout << (*out_data[0])[s][j] << " ";
+        if ((j + 1) % out_dim.width_ == 0)
+        {
+          std::cout << std::endl;
+        }
+        if ((j + 1) % (out_dim.width_ * out_dim.width_) == 0)
+        {
+          std::cout << std::endl;
+        }
+      }
+      std::cout << std::endl;
+    }
+  }
 }
 
 // back_propagation
@@ -229,9 +250,15 @@ class average_pooling_layer : public partial_connected_layer {
 
   std::string kernel_header() const override {
     std::stringstream ss;
-    //ss << "#define OUTPUT_SIZE " << params_.out_size_ << "\n";
-    //ss << "#define INPUT_SIZE " << params_.in_size_ << "\n";
-    //ss << "#define HAS_BIAS " << params_.has_bias_ << "\n";
+    ss << "#define IN_WIDTH " << in_.width_ << "\n";
+    ss << "#define IN_HEIGHT " << in_.height_ << "\n";
+    ss << "#define CHANNELS " << in_.depth_ << "\n";
+    ss << "#define OUT_WIDTH " << out_.width_ << "\n";
+    ss << "#define OUT_HEIGHT " << out_.height_ << "\n";
+    ss << "#define STRIDE_X " << stride_x_ << "\n";
+    ss << "#define STRIDE_Y " << stride_y_ << "\n";
+    ss << "#define KERNEL_X " << pool_size_x_ << "\n";
+    ss << "#define KERNEL_Y " << pool_size_y_ << "\n";
 
     return ss.str();
   }
@@ -239,7 +266,14 @@ class average_pooling_layer : public partial_connected_layer {
   void forward_propagation(const std::vector<tensor_t *> &in_data,
                            std::vector<tensor_t *> &out_data) override {
     if (layer::engine() == core::backend_t::opencl) {
-      kernels::tiny_average_pooling_kernel_opencl(parallelize_, in_data, out_data, out_,
+      // forward fully connected op context
+      //fwd_ctx_.set_in_out(in_data, out_data);
+      fwd_ctx_.setParallelize(layer::parallelize());
+      fwd_ctx_.setEngine(layer::engine());
+      fwd_ctx_.setDevice(layer::device());
+      fwd_ctx_.setLayer(this);
+
+      kernels::tiny_average_pooling_kernel_opencl(fwd_ctx_, parallelize_, in_data, out_data, out_,
         Base::scale_factor_, Base::out2wi_);
     }
     else
@@ -254,7 +288,14 @@ class average_pooling_layer : public partial_connected_layer {
                         std::vector<tensor_t *> &out_grad,
                         std::vector<tensor_t *> &in_grad) override {
     if (layer::engine() == core::backend_t::opencl) {
-      kernels::tiny_average_pooling_back_kernel_opencl(
+      // backward fully connected op context
+      //bwd_ctx_.set_in_out(in_data, out_data, out_grad, in_grad);
+      bwd_ctx_.setParallelize(layer::parallelize());
+      bwd_ctx_.setEngine(layer::engine());
+      bwd_ctx_.setDevice(layer::device());
+      bwd_ctx_.setLayer(this);
+
+      kernels::tiny_average_pooling_back_kernel_opencl(bwd_ctx_,
         parallelize_, in_data, out_data, out_grad, in_grad, in_,
         Base::scale_factor_, Base::weight2io_, Base::in2wo_, Base::bias2out_);
     }
@@ -281,6 +322,13 @@ class average_pooling_layer : public partial_connected_layer {
   shape3d in_;
   shape3d out_;
   shape3d w_;
+
+  /* forward op context */
+  core::OpKernelContext fwd_ctx_;
+
+  /* backward op context */
+  core::OpKernelContext bwd_ctx_;
+
 
   static size_t pool_out_dim(size_t in_size,
                              size_t pooling_size,
