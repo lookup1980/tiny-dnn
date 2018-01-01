@@ -21,114 +21,92 @@ inline void tiny_average_pooling_kernel_opencl(
   const shape3d &out_dim,
   float_t scale_factor,
   std::vector<typename partial_connected_layer::wi_connections> &out2wi) {
-  for_i(parallelize, in_data[0]->size(), [&](size_t sample) {
-    const vec_t &in = (*in_data[0])[sample];
-    const vec_t &W = (*in_data[1])[0];
-    const vec_t &b = (*in_data[2])[0];
-    vec_t &out = (*out_data[0])[sample];
 
-    auto oarea = out_dim.area();
-    size_t idx = 0;
-    for (size_t d = 0; d < out_dim.depth_; ++d) {
-      float_t weight = W[d] * scale_factor;
-      float_t bias = b[d];
-      for (size_t i = 0; i < oarea; ++i, ++idx) {
-        const auto &connections = out2wi[idx];
-        float_t value{ 0 };
-        for (auto connection : connections) value += in[connection.second];
-        value *= weight;
-        value += bias;
-        out[idx] = value;
+
+#if defined(USE_OPENCL) || defined(USE_CUDA)
+  // retrieve program from register
+  // mgu: kernel_string may be a big string, and may cause performance problem
+  CLCudaAPI::Program program = ProgramManager::getInstance().program(
+    Program(context.device(), context.Layer()->layer_type(), std::move(context.Layer()->kernel_string())));
+  nn_warn("Got Program");
+
+  // Creates the kernel from the compiled program and sets the arguments.
+  printCLPrograms(program);
+  auto kernel = CLCudaAPI::Kernel(program, "AveragePooling");
+  nn_warn("Got Kernel");
+
+  tiny_dnn::Device *device = context.device();
+  CLCudaAPI::Context ctx = context.device()->context();
+  CLCudaAPI::Queue queue = context.device()->queue();
+
+  const vec_t &W = (*in_data[1])[0];
+  auto dev_W = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kReadOnly, out_dim.depth_);
+  dev_W.WriteAsync(queue, out_dim.depth_, &W[0], 0);
+  const vec_t &b = (*in_data[2])[0];
+  auto dev_bias = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kReadOnly, out_dim.depth_);
+  dev_bias.WriteAsync(queue, out_dim.depth_, &b[0], 0);
+
+  const size_t sample_num = (*in_data[0]).size();
+  assert((*in_data[0]).size() == (*out_data[0]).size());
+
+  const size_t input_size = (*in_data[0])[0].size();
+  const size_t output_size = (*out_data[0])[0].size();
+
+  auto dev_in = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kReadOnly, sample_num * input_size);
+  auto dev_out = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kWriteOnly, sample_num * output_size);
+
+  for (size_t i = 0; i < sample_num; ++i) {
+    dev_in.WriteAsync(queue, input_size, &((*in_data[0])[i][0]), input_size*i);
+  }
+
+  kernel.SetArgument(0, dev_in);    // in_data
+  kernel.SetArgument(1, dev_W);     // kernel_data
+  kernel.SetArgument(2, dev_bias);  // bias
+  kernel.SetArgument(3, scale_factor);  // 
+  kernel.SetArgument(4, dev_out);   // out_data
+
+  auto local = std::vector<size_t>{ out_dim.width_, out_dim.height_, 1 };
+  assert(local[0] * local[1] * local[2] <= device->device().MaxWorkGroupSize());
+
+  const int sample_sqrt = sqrtf(sample_num);
+  assert(sample_sqrt*sample_sqrt == sample_num);
+  auto global = std::vector<size_t>{ local[0] * sample_sqrt, local[1] * sample_sqrt, out_dim.depth_ };
+
+  // Creates a new CLCudaAPI event to be able to time kernels
+  auto event = CLCudaAPI::Event();
+  nn_info("## Running the kernel ...");
+
+  kernel.Launch(queue, global, local, event.pointer());
+  queue.Finish(event);
+
+  nn_info(" > Took " + to_string(event.GetElapsedTime()) + " ms");
+
+  // Upload data GPU -> CPU
+  for (size_t i = 0; i < (*out_data[0]).size(); ++i) {
+    dev_out.ReadAsync(queue, output_size, &((*out_data[0])[i][0]), output_size*i);
+  }
+
+  // FOR DEBUG ONLY
+  if (0)
+  {
+    nn_warn("output kernel:\n");
+    std::cout << "GPU output: " << std::endl;
+    for (size_t s = 0; s < 1/*out_data.size()*/; ++s) {
+      for (size_t j = 0; j < output_size; ++j) {
+        std::cout << (*out_data[0])[s][j] << " ";
+        if ((j+1)% out_dim.width_ ==0)
+        {
+          std::cout << std::endl;
+        }
+        if ((j+1) % (out_dim.width_ * out_dim.width_) == 0)
+        {
+          std::cout << std::endl;
+        }
       }
+      std::cout << std::endl;
     }
-
-    assert(out.size() == out2wi.size());
-  });
-//
-//#if defined(USE_OPENCL) || defined(USE_CUDA)
-//  // retrieve program from register
-//  // mgu: kernel_string may be a big string, and may cause performance problem
-//  CLCudaAPI::Program program = ProgramManager::getInstance().program(
-//    Program(context.device(), context.Layer()->layer_type(), std::move(context.Layer()->kernel_string())));
-//  nn_warn("Got Program");
-//
-//  // Creates the kernel from the compiled program and sets the arguments.
-//  printCLPrograms(program);
-//  auto kernel = CLCudaAPI::Kernel(program, "AveragePooling");
-//  nn_warn("Got Kernel");
-//
-//  tiny_dnn::Device *device = context.device();
-//  CLCudaAPI::Context ctx = context.device()->context();
-//  CLCudaAPI::Queue queue = context.device()->queue();
-//
-//  const vec_t &W = (*in_data[1])[0];
-//  auto dev_W = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kReadOnly, out_dim.depth_);
-//  dev_W.WriteAsync(queue, out_dim.depth_, &W[0], 0);
-//  const vec_t &b = (*in_data[2])[0];
-//  auto dev_bias = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kReadOnly, out_dim.depth_);
-//  dev_bias.WriteAsync(queue, out_dim.depth_, &b[0], 0);
-//
-//  const size_t sample_num = (*in_data[0]).size();
-//  assert((*in_data[0]).size() == (*out_data[0]).size());
-//
-//  const size_t input_size = (*in_data[0])[0].size();
-//  const size_t output_size = (*out_data[0])[0].size();
-//
-//  auto dev_in = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kReadOnly, sample_num * input_size);
-//  auto dev_out = CLCudaAPI::Buffer<float_t>(ctx, CLCudaAPI::BufferAccess::kWriteOnly, sample_num * output_size);
-//
-//  for (size_t i = 0; i < sample_num; ++i) {
-//    dev_in.WriteAsync(queue, input_size, &((*in_data[0])[i][0]), input_size*i);
-//  }
-//
-//  kernel.SetArgument(0, dev_in);    // in_data
-//  kernel.SetArgument(1, dev_W);     // kernel_data
-//  kernel.SetArgument(2, dev_bias);  // bias
-//  kernel.SetArgument(3, scale_factor);  // 
-//  kernel.SetArgument(4, dev_out);   // out_data
-//
-//  auto local = std::vector<size_t>{ out_dim.width_, out_dim.height_, 1 };
-//  assert(local[0] * local[1] * local[2] <= device->device().MaxWorkGroupSize());
-//
-//  const int sample_sqrt = sqrtf(sample_num);
-//  assert(sample_sqrt*sample_sqrt == sample_num);
-//  auto global = std::vector<size_t>{ local[0] * sample_sqrt, local[1] * sample_sqrt, out_dim.depth_ };
-//
-//  // Creates a new CLCudaAPI event to be able to time kernels
-//  auto event = CLCudaAPI::Event();
-//  nn_info("## Running the kernel ...");
-//
-//  kernel.Launch(queue, global, local, event.pointer());
-//  queue.Finish(event);
-//
-//  nn_info(" > Took " + to_string(event.GetElapsedTime()) + " ms");
-//
-//  // Upload data GPU -> CPU
-//  for (size_t i = 0; i < (*out_data[0]).size(); ++i) {
-//    dev_out.ReadAsync(queue, output_size, &((*out_data[0])[i][0]), output_size*i);
-//  }
-//
-//  // FOR DEBUG ONLY
-//  if (0)
-//  {
-//    nn_warn("output kernel:\n");
-//    std::cout << "GPU output: " << std::endl;
-//    for (size_t s = 0; s < 1/*out_data.size()*/; ++s) {
-//      for (size_t j = 0; j < output_size; ++j) {
-//        std::cout << (*out_data[0])[s][j] << " ";
-//        if ((j+1)% out_dim.width_ ==0)
-//        {
-//          std::cout << std::endl;
-//        }
-//        if ((j+1) % (out_dim.width_ * out_dim.width_) == 0)
-//        {
-//          std::cout << std::endl;
-//        }
-//      }
-//      std::cout << std::endl;
-//    }
-//  }
-//#endif
+  }
+#endif
 
 }
 

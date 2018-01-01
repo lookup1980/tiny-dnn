@@ -145,23 +145,18 @@ __kernel void CFMulti(__global Dtype* image_data, int_tp IMAGE_OFFSET,
   Dtype totalSum = 0.0f;
   for (int_tp in_depth_idx = 0; in_depth_idx < (int_tp)DEPTH; in_depth_idx++)
   {
-    if (!IS_FULLY_CONNECTED) {
-      uchar connected = connect_table[in_depth_idx*OUTPUT_D + out_depth_idx];
-      if (!connected) {
-        continue;
-      }
-    }
-
-	const int_tp image_offset = (WIDTH * HEIGHT * DEPTH * sample_offset) + (WIDTH * HEIGHT * in_depth_idx) + outputX + IMAGE_OFFSET;
-	const int_tp kernel_offset = (KERNEL_W * KERNEL_H * DEPTH * out_depth_idx) + (KERNEL_W * KERNEL_H * in_depth_idx) + KERNEL_OFFSET;
-    for (int_tp y = 0; y < KERNEL_H; y++)
-    {
-      __global Dtype* image_dataPtrFloat = image_data + image_offset + (WIDTH * (outputY+y));
+    uchar connected = connect_table[in_depth_idx*OUTPUT_D + out_depth_idx];
+    if (IS_FULLY_CONNECTED || connected == 1) {
+      const int_tp image_offset = (WIDTH * HEIGHT * DEPTH * sample_offset) + (WIDTH * HEIGHT * in_depth_idx) + WIDTH * outputY + outputX + IMAGE_OFFSET;
+      const int_tp kernel_offset = (KERNEL_W * KERNEL_H * DEPTH * out_depth_idx) + (KERNEL_W * KERNEL_H * in_depth_idx) + KERNEL_OFFSET;
 
 #pragma unroll
-      for (int_tp x = 0; x < KERNEL_W; x++)
+      for (int_tp y = 0; y < KERNEL_H; y++)
       {
-        totalSum += *(image_dataPtrFloat + x) * kernel_data[kernel_offset + (KERNEL_W * y) + x];
+        for (int_tp x = 0; x < KERNEL_W; x++)
+        {
+          totalSum += image_data[image_offset + WIDTH * y + x] * kernel_data[kernel_offset + (KERNEL_W * y) + x];
+        }
       }
     }
   }

@@ -461,6 +461,28 @@ inline void conv2d_op_avx(const tensor_t &in_data,
       avx_conv2d_5x5_kernel(params, in_data[i], W, bias, out_data[i],
                             layer_parallelize);
     });
+
+    // FOR DEBUG ONLY
+    if (0)
+    {
+      nn_warn("output kernel:\n");
+      std::cout << "CPU output:" << std::endl;
+      for (size_t i = 0; i < 2/*out_data.size()*/; ++i) {
+        for (size_t j = 0; j < out_data[i].size(); ++j) {
+          std::cout << out_data[i][j] << " ";
+          if ((j + 1) % params.out.width_ == 0)
+          {
+            std::cout << std::endl;
+            if ((j + 1) % (params.out.width_ * params.out.height_) == 0)
+            {
+              std::cout << std::endl;
+            }
+          }
+        }
+        std::cout << std::endl;
+      }
+    }
+
     return;
   }
 #endif

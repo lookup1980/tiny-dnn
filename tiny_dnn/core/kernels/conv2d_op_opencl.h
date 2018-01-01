@@ -170,13 +170,14 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
     if (0)
     {
       nn_warn("output kernel:\n");
+      std::cout << "GPU output:" << std::endl;
       for (size_t i = 0; i < 2/*out_data.size()*/; ++i) {
         for (size_t j = 0; j < out_data[i].size(); ++j) {
           std::cout << out_data[i][j] << " ";
-          if ((j + 1) % 28 == 0)
+          if ((j + 1) % params.out.width_ == 0)
           {
             std::cout << std::endl;
-            if ((j + 1) % (28 * 28) == 0)
+            if ((j + 1) % (params.out.width_ * params.out.height_) == 0)
             {
               std::cout << std::endl;
             }
