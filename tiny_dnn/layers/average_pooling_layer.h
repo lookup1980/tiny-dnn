@@ -60,8 +60,8 @@ inline void tiny_average_pooling_kernel(
   if (0)
   {
     nn_warn("output kernel:\n");
-    std::cout << "CPU output: " << std::endl;
-    for (size_t s = 0; s < 1/*out_data.size()*/; ++s) {
+    std::cout << "Average pooling: CPU output: " << std::endl;
+    for (size_t s = 0; s < std::min<size_t>(2, out_data.size()); ++s) {
       for (size_t j = 0; j < out_dim.area()*out_dim.depth_; ++j) {
         std::cout << (*out_data[0])[s][j] << " ";
         if ((j + 1) % out_dim.width_ == 0)
@@ -284,26 +284,30 @@ class average_pooling_layer : public partial_connected_layer {
   }
 
   void back_propagation(const std::vector<tensor_t *> &in_data,
-                        const std::vector<tensor_t *> &out_data,
-                        std::vector<tensor_t *> &out_grad,
-                        std::vector<tensor_t *> &in_grad) override {
-    if (layer::engine() == core::backend_t::opencl) {
-      // backward fully connected op context
-      //bwd_ctx_.set_in_out(in_data, out_data, out_grad, in_grad);
-      bwd_ctx_.setParallelize(layer::parallelize());
-      bwd_ctx_.setEngine(layer::engine());
-      bwd_ctx_.setDevice(layer::device());
-      bwd_ctx_.setLayer(this);
+    const std::vector<tensor_t *> &out_data,
+    std::vector<tensor_t *> &out_grad,
+    std::vector<tensor_t *> &in_grad) override {
+    tiny_average_pooling_back_kernel(
+      parallelize_, in_data, out_data, out_grad, in_grad, in_,
+      Base::scale_factor_, Base::weight2io_, Base::in2wo_, Base::bias2out_);
 
-      kernels::tiny_average_pooling_back_kernel_opencl(bwd_ctx_,
-        parallelize_, in_data, out_data, out_grad, in_grad, in_,
-        Base::scale_factor_, Base::weight2io_, Base::in2wo_, Base::bias2out_);
-    }
-    else
+    // FOR DEBUG ONLY
+    if (0)
     {
-      tiny_average_pooling_back_kernel(
-        parallelize_, in_data, out_data, out_grad, in_grad, in_,
-        Base::scale_factor_, Base::weight2io_, Base::in2wo_, Base::bias2out_);
+      std::cout << "Average pooling bprop: output: " << std::endl;
+      std::cout << "  prev delta: " << std::endl;
+      for (size_t s = 0; s < std::min<size_t>(2, out_data.size()); ++s) {
+        vec_t &prev_delta = (*in_grad[0])[s];
+        for (int i = 0; i < prev_delta.size(); ++i)
+        {
+          std::cout << prev_delta[i] << " ";
+          if ((i + 1) % in_.width_ == 0)
+          {
+            std::cout << std::endl;
+          }
+        }
+        std::cout << std::endl;
+      }
     }
   }
 

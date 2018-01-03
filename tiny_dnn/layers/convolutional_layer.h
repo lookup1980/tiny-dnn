@@ -312,6 +312,61 @@ class convolutional_layer : public layer {
 
     // unpad deltas
     padding_op_.copy_and_unpad_delta(cws_.prev_delta_padded_, *in_grad[0]);
+
+
+    // FOR DEBUG ONLY
+    if (0)
+    {
+      std::cout << "Convolution bprop: output: " << std::endl;
+      std::cout << "  prev delta: " << std::endl;
+      for (size_t s = 0; s < std::min<size_t>(2, out_data.size()); ++s) {
+        vec_t &prev_delta = (*in_grad[0])[s];
+        for (int i = 0; i < prev_delta.size(); ++i)
+        {
+          std::cout << prev_delta[i] << " ";
+          if ((i + 1) % params_.in.width_ == 0)
+          {
+            std::cout << std::endl;
+          }
+        }
+        std::cout << std::endl;
+      }
+      std::cout << std::endl;
+
+      std::cout << "  W delta: " << std::endl;
+      tensor_t &dW = bwd_ctx_.input_grad(1);
+
+      for (size_t s = 0; s < 2/*out_data.size()*/; ++s) {
+        vec_t &dW1 = dW[s];
+        for (int i = 0; i < dW1.size(); ++i)
+        {
+          std::cout << dW1[i] << " ";
+          if ((i + 1) % 32 == 0)
+          {
+            std::cout << std::endl;
+          }
+        }
+        std::cout << std::endl;
+      }
+      std::cout << std::endl;
+
+      std::cout << "  b delta: " << std::endl;
+      tensor_t &db = bwd_ctx_.input_grad(2);
+
+      for (size_t s = 0; s < 2/*out_data.size()*/; ++s) {
+        vec_t &db1 = db[s];
+        for (int i = 0; i < db1.size(); ++i)
+        {
+          std::cout << db1[i] << " ";
+          if ((i + 1) % 32 == 0)
+          {
+            std::cout << std::endl;
+          }
+        }
+        std::cout << std::endl;
+      }
+      std::cout << std::endl;
+    }
   }
 
   void set_sample_count(size_t sample_count) override {

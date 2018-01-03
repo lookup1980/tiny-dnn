@@ -114,7 +114,9 @@ class layer : public node {
       // Define op kernel string and instantiate program
       // TODO(edgar): load from `cl_kernels` dir.
       // std::ifstream cl_file("opencl_hello_world.cl");
-      std::cout << "Kernel file name: " << kernel_file() << std::endl;
+
+      //std::cout << "Kernel file name: " << kernel_file() << std::endl; // - mgu
+
       std::ifstream cl_file(kernel_file());
       std::string program_tail{ std::istreambuf_iterator<char>(cl_file),
         std::istreambuf_iterator<char>() };
@@ -129,18 +131,18 @@ class layer : public node {
       // per layer params
       program_head += kernel_header();
 
-      std::cout << kernel_header() << std::endl;
+      //std::cout << kernel_header() << std::endl; // - mgu
 
       kernel_string_ = std::string{ program_head } +
         std::string{ program_tail };
 
-      // write the shader to file - mgu
-      char filename[32];
-      sprintf(filename, "%016llX", kernel_string_.c_str());
-      std::ofstream myfile;
-      myfile.open(filename);
-      myfile << kernel_string_;
-      myfile.close();
+      //// write the shader to file - mgu
+      //char filename[32];
+      //sprintf(filename, "%016llX", kernel_string_.c_str());
+      //std::ofstream myfile;
+      //myfile.open(filename);
+      //myfile << kernel_string_;
+      //myfile.close();
     }
 
     return kernel_string_;

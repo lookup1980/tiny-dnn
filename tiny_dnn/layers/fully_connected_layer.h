@@ -109,6 +109,27 @@ class fully_connected_layer : public layer {
 
     // launch fully connected kernel
     kernel_back_->compute(bwd_ctx_);
+
+    // FOR DEBUG ONLY
+    if (0)
+    {
+      tensor_t &prev_delta = bwd_ctx_.input_grad(0);
+
+      nn_warn("output kernel:\n");
+      std::cout << "Fully connected: output: " << std::endl;
+      std::cout << "  prev delta: " << std::endl;
+      for (size_t i = 0; i < std::min<size_t>(2, out_data.size()); ++i) {
+        auto &prev_delta2 = prev_delta[i];
+        for (size_t j = 0; j < prev_delta2.size(); ++j) {
+          std::cout << prev_delta2[i] << " ";
+          if ((j + 1) % 32 == 0)
+          {
+            std::cout << std::endl;
+          }
+        }
+        std::cout << std::endl;
+      }
+    }
   }
 
   std::string layer_type() const override { return "fully-connected"; }

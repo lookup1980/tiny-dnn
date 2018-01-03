@@ -159,19 +159,34 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
       dev_out.ReadAsync(queue, out_data[0].size(), &out_data[i][0], out_data[0].size()*i);
     }
 
-    //// FOR DEBUG ONLY
-    //nn_warn("output kernel");
-    //for (size_t j = 0; j < out.size(); ++j) {
-    //  std::cout << out[j] << " ";
-    //}
-    //std::cout << std::endl;
-
     // FOR DEBUG ONLY
-    if (0)
+    if (1)
     {
       nn_warn("output kernel:\n");
-      std::cout << "GPU output:" << std::endl;
-      for (size_t i = 0; i < 2/*out_data.size()*/; ++i) {
+      std::cout << "Convolution: GPU W:" << std::endl;
+      for (size_t j = 0; j < W[0].size(); j++)
+      {
+        std::cout << W[0][j] << " ";
+        if ((j + 1) % 32 == 0)
+        {
+          std::cout << std::endl;
+        }
+      }
+      std::cout << std::endl;
+
+      std::cout << "Convolution: GPU bias:" << std::endl;
+      for (size_t j = 0; j < bias[0].size(); j++)
+      {
+        std::cout << bias[0][j] << " ";
+        if ((j + 1) % 32 == 0)
+        {
+          std::cout << std::endl;
+        }
+      }
+      std::cout << std::endl;
+
+      std::cout << "Convolution: GPU output:" << std::endl;
+      for (size_t i = 0; i < std::min<size_t>(2, out_data.size()); ++i) {
         for (size_t j = 0; j < out_data[i].size(); ++j) {
           std::cout << out_data[i][j] << " ";
           if ((j + 1) % params.out.width_ == 0)
@@ -186,11 +201,7 @@ class Conv2dOpenCLForwardOp : public core::OpKernel {
         std::cout << std::endl;
       }
     }
-
-    // copy back
-    //std::copy(std::begin(out), std::end(out),out_data[i].begin());
-
-    int ii = 10;
+    std::cout << std::endl;
 
 #else
     CNN_UNREFERENCED_PARAMETER(context);

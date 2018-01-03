@@ -79,14 +79,23 @@ static void train_lenet(const std::string &data_dir_path,
   std::vector<tiny_dnn::label_t> train_labels, test_labels;
   std::vector<tiny_dnn::vec_t> train_images, test_images;
 
-  tiny_dnn::parse_mnist_labels(data_dir_path + "/train-labels.idx1-ubyte",
-                               &train_labels);
-  tiny_dnn::parse_mnist_images(data_dir_path + "/train-images.idx3-ubyte",
-                               &train_images, -1.0, 1.0, 2, 2);
+  //tiny_dnn::parse_mnist_labels(data_dir_path + "/train-labels.idx1-ubyte",
+  //                             &train_labels);
+  //tiny_dnn::parse_mnist_images(data_dir_path + "/train-images.idx3-ubyte",
+  //                             &train_images, -1.0, 1.0, 2, 2);
+  //tiny_dnn::parse_mnist_labels(data_dir_path + "/t10k-labels.idx1-ubyte",
+  //                             &test_labels);
+  //tiny_dnn::parse_mnist_images(data_dir_path + "/t10k-images.idx3-ubyte",
+  //                             &test_images, -1.0, 1.0, 2, 2);
+
   tiny_dnn::parse_mnist_labels(data_dir_path + "/t10k-labels.idx1-ubyte",
-                               &test_labels);
+    &train_labels);
   tiny_dnn::parse_mnist_images(data_dir_path + "/t10k-images.idx3-ubyte",
-                               &test_images, -1.0, 1.0, 2, 2);
+    &train_images, -1.0, 1.0, 2, 2);
+  tiny_dnn::parse_mnist_labels(data_dir_path + "/t10k-labels.idx1-ubyte",
+    &test_labels);
+  tiny_dnn::parse_mnist_images(data_dir_path + "/t10k-images.idx3-ubyte",
+    &test_images, -1.0, 1.0, 2, 2);
 
   std::cout << "start training" << std::endl;
 
@@ -126,10 +135,10 @@ static void train_lenet(const std::string &data_dir_path,
   tiny_dnn::image<> img8 = nn[8]->output_to_image();
   img8.write("layer8.bmp");
 
-  // test and show results
-  nn.test(test_images, test_labels).print_detail(std::cout);
-  // save network model & trained weights
-  nn.save("LeNet-model");
+  //// test and show results
+  //nn.test(test_images, test_labels).print_detail(std::cout);
+  //// save network model & trained weights
+  //nn.save("LeNet-model");
 }
 
 static tiny_dnn::core::backend_t parse_backend_name(const std::string &name) {

@@ -90,8 +90,8 @@ inline void tiny_average_pooling_kernel_opencl(
   if (0)
   {
     nn_warn("output kernel:\n");
-    std::cout << "GPU output: " << std::endl;
-    for (size_t s = 0; s < 1/*out_data.size()*/; ++s) {
+    std::cout << "Average pooling: GPU output: " << std::endl;
+    for (size_t s = 0; s < std::min<size_t>(2, out_data.size()); ++s) {
       for (size_t j = 0; j < output_size; ++j) {
         std::cout << (*out_data[0])[s][j] << " ";
         if ((j+1)% out_dim.width_ ==0)

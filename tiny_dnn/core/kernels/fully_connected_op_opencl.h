@@ -84,13 +84,19 @@ inline void fully_connected_op_opencl(core::OpKernelContext &context,
   if (0)
   {
     nn_warn("output kernel:\n");
-    for (size_t i = 0; i < 16/*out_data.size()*/; ++i) {
+    std::cout << "Fully connected: CPU output: " << std::endl;
+    for (size_t i = 0; i < std::min<size_t>(2, out_data.size()); ++i) {
       for (size_t j = 0; j < out_data[i].size(); ++j) {
         std::cout << out_data[i][j] << " ";
+        if ((j + 1) % 16 == 0)
+        {
+          std::cout << std::endl;
+        }
       }
       std::cout << std::endl;
     }
   }
+
 
 #endif
 }
