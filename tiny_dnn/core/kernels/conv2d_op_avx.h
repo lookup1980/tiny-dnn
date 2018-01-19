@@ -462,51 +462,6 @@ inline void conv2d_op_avx(const tensor_t &in_data,
                             layer_parallelize);
     });
 
-
-    // FOR DEBUG ONLY
-    if (1)
-    {
-      nn_warn("output kernel:\n");
-      std::cout << "Convolution: GPU W:" << std::endl;
-      for (size_t j = 0; j < W.size(); j++)
-      {
-        std::cout << W[j] << " ";
-        if ((j + 1) % 32 == 0)
-        {
-          std::cout << std::endl;
-        }
-      }
-      std::cout << std::endl;
-
-      std::cout << "Convolution: GPU bias:" << std::endl;
-      for (size_t j = 0; j < bias.size(); j++)
-      {
-        std::cout << bias[j] << " ";
-        if ((j + 1) % 32 == 0)
-        {
-          std::cout << std::endl;
-        }
-      }
-      std::cout << std::endl;
-
-      std::cout << "Convolution: GPU output:" << std::endl;
-      for (size_t i = 0; i < std::min<size_t>(2, out_data.size()); ++i) {
-        for (size_t j = 0; j < out_data[i].size(); ++j) {
-          std::cout << out_data[i][j] << " ";
-          if ((j + 1) % params.out.width_ == 0)
-          {
-            std::cout << std::endl;
-            if ((j + 1) % (params.out.width_ * params.out.height_) == 0)
-            {
-              std::cout << std::endl;
-            }
-          }
-        }
-        std::cout << std::endl;
-      }
-    }
-    std::cout << std::endl;
-
     return;
   }
 #endif

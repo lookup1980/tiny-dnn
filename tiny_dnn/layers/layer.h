@@ -46,25 +46,25 @@ namespace tiny_dnn {
  * - out_shape           ... specify output data shapes
  * - layer_type          ... name of layer
  **/
-class layer : public node {
- public:
-  friend void connection_mismatch(const layer &from, const layer &to);
+  class layer : public node {
+  public:
+    friend void connection_mismatch(const layer &from, const layer &to);
 
-  virtual ~layer() { 
-    //printf("layer destructor: %016llX\n", this); 
-  };
+    virtual ~layer() {
+      //printf("layer destructor: %016llX\n", this); 
+    };
 
-  /**
-   * @brief Defaul layer constructor that instantiates a N-input, M-output
-   *layer
-   *
-   * @param in_type[N] type of input vector (data, weight, bias...)
-   * @param out_type[M] type of output vector
-   *
-   **/
-  layer(const std::vector<vector_type> &in_type,
-        const std::vector<vector_type> &out_type)
-    : node(in_type.size(), out_type.size()),
+    /**
+     * @brief Defaul layer constructor that instantiates a N-input, M-output
+     *layer
+     *
+     * @param in_type[N] type of input vector (data, weight, bias...)
+     * @param out_type[M] type of output vector
+     *
+     **/
+    layer(const std::vector<vector_type> &in_type,
+      const std::vector<vector_type> &out_type)
+      : node(in_type.size(), out_type.size()),
       initialized_(false),
       parallelize_(true),
       in_channels_(in_type.size()),
@@ -72,407 +72,414 @@ class layer : public node {
       in_type_(in_type),
       out_type_(out_type),
       kernel_string_("") {
-    weight_init_ = std::make_shared<weight_init::xavier>();
-    bias_init_   = std::make_shared<weight_init::constant>();
-    trainable_   = true;
+      weight_init_ = std::make_shared<weight_init::xavier>();
+      bias_init_ = std::make_shared<weight_init::constant>();
+      trainable_ = true;
 
-    //printf("layer constructor: %016llX\n", this);
-  }
+      //printf("layer constructor: %016llX\n", this);
+    }
 
-  layer(const layer &) = default;
-  layer &operator=(const layer &) = default;
+    layer(const layer &) = default;
+    layer &operator=(const layer &) = default;
 
-  layer(layer &&) = default;
-  layer &operator=(layer &&) = default;
+    layer(layer &&) = default;
+    layer &operator=(layer &&) = default;
 
-  void set_parallelize(bool parallelize) { parallelize_ = parallelize; }
+    void set_parallelize(bool parallelize) { parallelize_ = parallelize; }
 
-  void set_backend(std::shared_ptr<core::backend> backend) {
-    backend_ = backend;
-  }
+    void set_backend(std::shared_ptr<core::backend> backend) {
+      backend_ = backend;
+    }
 
-  void set_backend_type(core::backend_t backend_type) {
-    backend_type_ = backend_type;
-  }
+    void set_backend_type(core::backend_t backend_type) {
+      backend_type_ = backend_type;
+    }
 
-  /////////////////////////////////////////////////////////////////////////
-  // getter
+    /////////////////////////////////////////////////////////////////////////
+    // getter
 
-  bool parallelize() const { return parallelize_; }
+    bool parallelize() const { return parallelize_; }
 
-  // TODO(edgar): Deprecated: use the below method
-  core::backend_t backend_type() const { return backend_->type(); }
+    // TODO(edgar): Deprecated: use the below method
+    core::backend_t backend_type() const { return backend_->type(); }
 
-  core::backend_t engine() const { return backend_type_; }
+    core::backend_t engine() const { return backend_type_; }
 
-  virtual std::string kernel_file() const = 0;
-  virtual std::string kernel_header() const = 0;
-  std::string kernel_string()
-  {
-    if (kernel_string_.empty())
+    virtual std::string kernel_file() const = 0;
+    virtual std::string kernel_header() const = 0;
+    std::string kernel_string()
     {
-      // Define op kernel string and instantiate program
-      // TODO(edgar): load from `cl_kernels` dir.
-      // std::ifstream cl_file("opencl_hello_world.cl");
+      if (kernel_string_.empty())
+      {
+        // Define op kernel string and instantiate program
+        // TODO(edgar): load from `cl_kernels` dir.
+        // std::ifstream cl_file("opencl_hello_world.cl");
 
-      //std::cout << "Kernel file name: " << kernel_file() << std::endl; // - mgu
+        //std::cout << "Kernel file name: " << kernel_file() << std::endl; // - mgu
 
-      std::ifstream cl_file(kernel_file());
-      std::string program_tail{ std::istreambuf_iterator<char>(cl_file),
-        std::istreambuf_iterator<char>() };
-      // fixed kernel params
-      std::string program_head =
-        std::string("#define Dtype float\n") +
-        std::string("#define Dtype4 float4\n") +
-        std::string("#define int_tp int\n") +
-        std::string("#define CONCAT(A,B) A##_##B\n") +
-        std::string("#define TEMPLATE(name,type) CONCAT(name,type)\n");
+        std::ifstream cl_file(kernel_file());
+        std::string program_tail{ std::istreambuf_iterator<char>(cl_file),
+          std::istreambuf_iterator<char>() };
+        // fixed kernel params
+        std::string program_head =
+          std::string("#define Dtype float\n") +
+          std::string("#define Dtype4 float4\n") +
+          std::string("#define int_tp int\n") +
+          std::string("#define CONCAT(A,B) A##_##B\n") +
+          std::string("#define TEMPLATE(name,type) CONCAT(name,type)\n");
 
-      // per layer params
-      program_head += kernel_header();
+        // per layer params
+        program_head += kernel_header();
 
-      //std::cout << kernel_header() << std::endl; // - mgu
+        //std::cout << kernel_header() << std::endl; // - mgu
 
-      kernel_string_ = std::string{ program_head } +
-        std::string{ program_tail };
+        kernel_string_ = std::string{ program_head } +
+          std::string{ program_tail };
 
-      //// write the shader to file - mgu
-      //char filename[32];
-      //sprintf(filename, "%016llX", kernel_string_.c_str());
-      //std::ofstream myfile;
-      //myfile.open(filename);
-      //myfile << kernel_string_;
-      //myfile.close();
+        //// write the shader to file - mgu
+        //char filename[32];
+        //sprintf(filename, "%016llX", kernel_string_.c_str());
+        //std::ofstream myfile;
+        //myfile.open(filename);
+        //myfile << kernel_string_;
+        //myfile.close();
+      }
+
+      return kernel_string_;
     }
 
-    return kernel_string_;
-  }
+    virtual void createOp() {}
 
-  virtual void createOp() {}
+    void setDevice(const Device &device) {
+      device_ptr_ = const_cast<Device *>(&device);
+    }
 
-  void setDevice(const Device &device) {
-    device_ptr_ = const_cast<Device *>(&device);
-  }
+    Device *device() const { return device_ptr_; }
 
-  Device *device() const { return device_ptr_; }
+    std::shared_ptr<core::backend> backend() { return backend_; }
 
-  std::shared_ptr<core::backend> backend() { return backend_; }
+    ///< number of incoming edges in this layer
+    size_t in_channels() const { return in_channels_; }
 
-  ///< number of incoming edges in this layer
-  size_t in_channels() const { return in_channels_; }
+    ///< number of outgoing edges in this layer
+    size_t out_channels() const { return out_channels_; }
 
-  ///< number of outgoing edges in this layer
-  size_t out_channels() const { return out_channels_; }
+    size_t in_data_size() const {
+      return sumif(in_shape(),
+        [&](size_t i) {  // NOLINT
+        return in_type_[i] == vector_type::data;
+      },
+        [](const shape3d &s) { return s.size(); });
+    }
 
-  size_t in_data_size() const {
-    return sumif(in_shape(),
-                 [&](size_t i) {  // NOLINT
-                   return in_type_[i] == vector_type::data;
-                 },
-                 [](const shape3d &s) { return s.size(); });
-  }
+    size_t out_data_size() const {
+      return sumif(out_shape(),
+        [&](size_t i) {  // NOLINT
+        return out_type_[i] == vector_type::data;
+      },
+        [](const shape3d &s) { return s.size(); });
+    }
 
-  size_t out_data_size() const {
-    return sumif(out_shape(),
-                 [&](size_t i) {  // NOLINT
-                   return out_type_[i] == vector_type::data;
-                 },
-                 [](const shape3d &s) { return s.size(); });
-  }
+    std::vector<shape3d> in_data_shape() {
+      return filter(in_shape(), [&](size_t i) {  // NOLINT
+        return in_type_[i] == vector_type::data;
+      });
+    }
 
-  std::vector<shape3d> in_data_shape() {
-    return filter(in_shape(), [&](size_t i) {  // NOLINT
-      return in_type_[i] == vector_type::data;
-    });
-  }
+    std::vector<shape3d> out_data_shape() {
+      return filter(out_shape(), [&](size_t i) {  // NOLINT
+        return out_type_[i] == vector_type::data;
+      });
+    }
 
-  std::vector<shape3d> out_data_shape() {
-    return filter(out_shape(), [&](size_t i) {  // NOLINT
-      return out_type_[i] == vector_type::data;
-    });
-  }
+    ///! @deprecated use in_data_size() instead
+    size_t in_size() const { return in_data_size(); }
 
-  ///! @deprecated use in_data_size() instead
-  size_t in_size() const { return in_data_size(); }
+    ///! @deprecated use out_data_size() instead
+    size_t out_size() const { return out_data_size(); }
 
-  ///! @deprecated use out_data_size() instead
-  size_t out_size() const { return out_data_size(); }
+    std::vector<const vec_t *> weights() const {
+      std::vector<const vec_t *> v;
+      for (size_t i = 0; i < in_channels_; i++) {
+        if (is_trainable_weight(in_type_[i])) {
+          v.push_back(get_weight_data(i));
+        }
+      }
+      return v;
+    }
 
-  std::vector<const vec_t *> weights() const {
-    std::vector<const vec_t *> v;
-    for (size_t i = 0; i < in_channels_; i++) {
-      if (is_trainable_weight(in_type_[i])) {
-        v.push_back(get_weight_data(i));
+    std::vector<vec_t *> weights() {
+      std::vector<vec_t *> v;
+      for (size_t i = 0; i < in_channels_; i++) {
+        if (is_trainable_weight(in_type_[i])) {
+          v.push_back(get_weight_data(i));
+        }
+      }
+      return v;
+    }
+
+    std::vector<tensor_t *> weights_grads() {
+      std::vector<tensor_t *> v;
+      for (size_t i = 0; i < in_channels_; i++) {
+        if (is_trainable_weight(in_type_[i])) {
+          v.push_back(ith_in_node(i)->get_gradient());
+        }
+      }
+      return v;
+    }
+
+    std::vector<edgeptr_t> inputs() {
+      std::vector<edgeptr_t> nodes(in_channels_);
+      for (size_t i = 0; i < in_channels_; i++) {
+        nodes[i] = ith_in_node(i);
+      }
+      return nodes;
+    }
+
+    std::vector<edgeptr_t> outputs() {
+      std::vector<edgeptr_t> nodes(out_channels_);
+      for (size_t i = 0; i < out_channels_; i++) {
+        nodes[i] = ith_out_node(i);
+      }
+      return nodes;
+    }
+
+    std::vector<edgeptr_t> outputs() const {
+      std::vector<edgeptr_t> nodes(out_channels_);
+      for (size_t i = 0; i < out_channels_; i++) {
+        nodes[i] = const_cast<layer *>(this)->ith_out_node(i);
+      }
+      return nodes;
+    }
+
+    void set_out_grads(const std::vector<const vec_t *> *grad, size_t cnt) {
+      CNN_UNREFERENCED_PARAMETER(cnt);
+      size_t n = 0;
+      for (size_t i = 0; i < out_channels_; i++) {
+        if (out_type_[i] != vector_type::data) continue;
+        tensor_t &dst_grad = *ith_out_node(i)->get_gradient();
+        assert(n < cnt);
+        const auto &src_grad = grad[n++];
+        size_t sz = src_grad.size();
+        dst_grad.resize(sz);
+        for (size_t j = 0; j < sz; ++j) {
+          assert(dst_grad[j].size() == src_grad[j]->size());
+          dst_grad[j] = *src_grad[j];
+        }
       }
     }
-    return v;
-  }
 
-  std::vector<vec_t *> weights() {
-    std::vector<vec_t *> v;
-    for (size_t i = 0; i < in_channels_; i++) {
-      if (is_trainable_weight(in_type_[i])) {
-        v.push_back(get_weight_data(i));
+    void set_in_data(const std::vector<const vec_t *> *data, size_t cnt) {
+      CNN_UNREFERENCED_PARAMETER(cnt);
+      size_t n = 0;
+      for (size_t i = 0; i < in_channels_; i++) {
+        if (in_type_[i] != vector_type::data) continue;
+        tensor_t &dst_data = *ith_in_node(i)->get_data();
+        size_t in_size = ith_in_node(i)->shape().size();
+        assert(n < cnt);
+        const auto &src_data = data[n++];
+        size_t sz = src_data.size();
+        dst_data.resize(sz);
+
+        CNN_UNREFERENCED_PARAMETER(in_size);
+
+        for (size_t j = 0; j < sz; ++j) {
+          assert(
+            src_data[j]->size() ==
+            in_size);  // checking if training data is consistent with layer shape
+          dst_data[j] = *src_data[j];
+        }
       }
     }
-    return v;
-  }
 
-  std::vector<tensor_t *> weights_grads() {
-    std::vector<tensor_t *> v;
-    for (size_t i = 0; i < in_channels_; i++) {
-      if (is_trainable_weight(in_type_[i])) {
-        v.push_back(ith_in_node(i)->get_gradient());
+    void output(std::vector<const tensor_t *> &out) const {
+      out.clear();
+      for (size_t i = 0; i < out_channels_; i++) {
+        if (out_type_[i] == vector_type::data) {
+          out.push_back(ith_out_node(i)->get_data());
+        }
       }
     }
-    return v;
-  }
 
-  std::vector<edgeptr_t> inputs() {
-    std::vector<edgeptr_t> nodes(in_channels_);
-    for (size_t i = 0; i < in_channels_; i++) {
-      nodes[i] = ith_in_node(i);
+    std::vector<vector_type> in_types() const { return in_type_; }
+
+    std::vector<vector_type> out_types() const { return out_type_; }
+
+    void set_trainable(bool trainable) { trainable_ = trainable; }
+
+    bool trainable() const { return trainable_; }
+
+    /**
+     * return output value range
+     * used only for calculating target value from label-id in final(output)
+     *layer
+     * override properly if the layer is intended to be used as output layer
+     **/
+    virtual std::pair<float_t, float_t> out_value_range() const {
+      return { float_t{0.0}, float_t{1.0} };
     }
-    return nodes;
-  }
 
-  std::vector<edgeptr_t> outputs() {
-    std::vector<edgeptr_t> nodes(out_channels_);
-    for (size_t i = 0; i < out_channels_; i++) {
-      nodes[i] = ith_out_node(i);
+    /**
+     * array of input shapes (width x height x depth)
+     **/
+    virtual std::vector<shape3d> in_shape() const = 0;
+
+    /**
+     * set input shape of a layer (only used internally while shape inferring)
+     */
+    virtual void set_in_shape(const shape3d &in_shape) {
+      CNN_UNREFERENCED_PARAMETER(in_shape);
+      throw nn_error(
+        "Can't set shape. Shape inferring not applicable for this "
+        "layer (yet).");
     }
-    return nodes;
-  }
 
-  std::vector<edgeptr_t> outputs() const {
-    std::vector<edgeptr_t> nodes(out_channels_);
-    for (size_t i = 0; i < out_channels_; i++) {
-      nodes[i] = const_cast<layer *>(this)->ith_out_node(i);
+    /**
+     * array of output shapes (width x height x depth)
+     **/
+    virtual std::vector<shape3d> out_shape() const = 0;
+
+    /**
+     * name of layer, should be unique for each concrete class
+     **/
+    virtual std::string layer_type() const = 0;
+
+    /**
+     * number of incoming connections for each output unit
+     * used only for weight/bias initialization methods which require fan-in
+     *size
+     *(e.g. xavier)
+     * override if the layer has trainable weights, and scale of initialization
+     *is
+     *important
+     **/
+    virtual size_t fan_in_size() const { return in_shape()[0].width_; }
+    // override to allow initialization of multiple size weight matrices.
+    virtual size_t fan_in_size(size_t) const {
+      return fan_in_size();  // fallback to single weight matrix.
     }
-    return nodes;
-  }
 
-  void set_out_grads(const std::vector<const vec_t *> *grad, size_t cnt) {
-    CNN_UNREFERENCED_PARAMETER(cnt);
-    size_t n = 0;
-    for (size_t i = 0; i < out_channels_; i++) {
-      if (out_type_[i] != vector_type::data) continue;
-      tensor_t &dst_grad = *ith_out_node(i)->get_gradient();
-      assert(n < cnt);
-      const auto &src_grad = grad[n++];
-      size_t sz            = src_grad.size();
-      dst_grad.resize(sz);
-      for (size_t j = 0; j < sz; ++j) {
-        assert(dst_grad[j].size() == src_grad[j]->size());
-        dst_grad[j] = *src_grad[j];
-      }
+    /**
+     * number of outgoing connections for each input unit
+     * used only for weight/bias initialization methods which require fan-out
+     *size
+     *(e.g. xavier)
+     * override if the layer has trainable weights, and scale of initialization
+     *is
+     *important
+     **/
+    virtual size_t fan_out_size() const { return out_shape()[0].width_; }
+    // override to allow initialization of multiple size weight vectors.
+    virtual size_t fan_out_size(size_t) const {
+      return fan_out_size();  // fallback to single weight matrix
     }
-  }
 
-  void set_in_data(const std::vector<const vec_t *> *data, size_t cnt) {
-    CNN_UNREFERENCED_PARAMETER(cnt);
-    size_t n = 0;
-    for (size_t i = 0; i < in_channels_; i++) {
-      if (in_type_[i] != vector_type::data) continue;
-      tensor_t &dst_data = *ith_in_node(i)->get_data();
-      size_t in_size     = ith_in_node(i)->shape().size();
-      assert(n < cnt);
-      const auto &src_data = data[n++];
-      size_t sz            = src_data.size();
-      dst_data.resize(sz);
-
-      CNN_UNREFERENCED_PARAMETER(in_size);
-
-      for (size_t j = 0; j < sz; ++j) {
-        assert(
-          src_data[j]->size() ==
-          in_size);  // checking if training data is consistent with layer shape
-        dst_data[j] = *src_data[j];
-      }
+    /////////////////////////////////////////////////////////////////////////
+    // setter
+    template <typename WeightInit>
+    layer &weight_init(const WeightInit &f) {
+      weight_init_ = std::make_shared<WeightInit>(f);
+      return *this;
     }
-  }
 
-  void output(std::vector<const tensor_t *> &out) const {
-    out.clear();
-    for (size_t i = 0; i < out_channels_; i++) {
-      if (out_type_[i] == vector_type::data) {
-        out.push_back(ith_out_node(i)->get_data());
-      }
+    template <typename BiasInit>
+    layer &bias_init(const BiasInit &f) {
+      bias_init_ = std::make_shared<BiasInit>(f);
+      return *this;
     }
-  }
 
-  std::vector<vector_type> in_types() const { return in_type_; }
+    template <typename WeightInit>
+    layer &weight_init(std::shared_ptr<WeightInit> f) {
+      weight_init_ = f;
+      return *this;
+    }
 
-  std::vector<vector_type> out_types() const { return out_type_; }
+    template <typename BiasInit>
+    layer &bias_init(std::shared_ptr<BiasInit> f) {
+      bias_init_ = f;
+      return *this;
+    }
 
-  void set_trainable(bool trainable) { trainable_ = trainable; }
-
-  bool trainable() const { return trainable_; }
-
-  /**
-   * return output value range
-   * used only for calculating target value from label-id in final(output)
-   *layer
-   * override properly if the layer is intended to be used as output layer
-   **/
-  virtual std::pair<float_t, float_t> out_value_range() const {
-    return {float_t{0.0}, float_t{1.0}};
-  }
-
-  /**
-   * array of input shapes (width x height x depth)
-   **/
-  virtual std::vector<shape3d> in_shape() const = 0;
-
-  /**
-   * set input shape of a layer (only used internally while shape inferring)
-   */
-  virtual void set_in_shape(const shape3d &in_shape) {
-    CNN_UNREFERENCED_PARAMETER(in_shape);
-    throw nn_error(
-      "Can't set shape. Shape inferring not applicable for this "
-      "layer (yet).");
-  }
-
-  /**
-   * array of output shapes (width x height x depth)
-   **/
-  virtual std::vector<shape3d> out_shape() const = 0;
-
-  /**
-   * name of layer, should be unique for each concrete class
-   **/
-  virtual std::string layer_type() const = 0;
-
-  /**
-   * number of incoming connections for each output unit
-   * used only for weight/bias initialization methods which require fan-in
-   *size
-   *(e.g. xavier)
-   * override if the layer has trainable weights, and scale of initialization
-   *is
-   *important
-   **/
-  virtual size_t fan_in_size() const { return in_shape()[0].width_; }
-  // override to allow initialization of multiple size weight matrices.
-  virtual size_t fan_in_size(size_t) const {
-    return fan_in_size();  // fallback to single weight matrix.
-  }
-
-  /**
-   * number of outgoing connections for each input unit
-   * used only for weight/bias initialization methods which require fan-out
-   *size
-   *(e.g. xavier)
-   * override if the layer has trainable weights, and scale of initialization
-   *is
-   *important
-   **/
-  virtual size_t fan_out_size() const { return out_shape()[0].width_; }
-  // override to allow initialization of multiple size weight vectors.
-  virtual size_t fan_out_size(size_t) const {
-    return fan_out_size();  // fallback to single weight matrix
-  }
-
-  /////////////////////////////////////////////////////////////////////////
-  // setter
-  template <typename WeightInit>
-  layer &weight_init(const WeightInit &f) {
-    weight_init_ = std::make_shared<WeightInit>(f);
-    return *this;
-  }
-
-  template <typename BiasInit>
-  layer &bias_init(const BiasInit &f) {
-    bias_init_ = std::make_shared<BiasInit>(f);
-    return *this;
-  }
-
-  template <typename WeightInit>
-  layer &weight_init(std::shared_ptr<WeightInit> f) {
-    weight_init_ = f;
-    return *this;
-  }
-
-  template <typename BiasInit>
-  layer &bias_init(std::shared_ptr<BiasInit> f) {
-    bias_init_ = f;
-    return *this;
-  }
-
-  virtual void save(
-    std::ostream &os,
-    const int precision = std::numeric_limits<float_t>::digits10 + 2
+    virtual void save(
+      std::ostream &os,
+      const int precision = std::numeric_limits<float_t>::digits10 + 2
     /*by default, we want there to be enough precision*/) const {
-    /*
-     if (is_exploded()) {
-       throw nn_error("failed to save weights because of infinite weight");
-    }*/
-    os << std::setprecision(precision);
-    auto all_weights = weights();
-    for (auto &weight : all_weights) {
-      for (auto w : *weight) os << w << " ";
+      /*
+       if (is_exploded()) {
+         throw nn_error("failed to save weights because of infinite weight");
+      }*/
+      os << std::setprecision(precision);
+      auto all_weights = weights();
+      for (auto &weight : all_weights) {
+        for (auto w : *weight) os << w << " ";
+      }
     }
-  }
 
-  virtual void load(
-    std::istream &is,
-    const int precision = std::numeric_limits<float_t>::digits10 + 2
+    virtual void load(
+      std::istream &is,
+      const int precision = std::numeric_limits<float_t>::digits10 + 2
     /*by default, we want there to be enough precision*/) {  // NOLINT
-    is >> std::setprecision(precision);
-    auto all_weights = weights();
-    for (auto &weight : all_weights) {
-      for (auto &w : *weight) is >> w;
+      is >> std::setprecision(precision);
+      auto all_weights = weights();
+      for (auto &weight : all_weights) {
+        for (auto &w : *weight) is >> w;
+      }
+      initialized_ = true;
     }
-    initialized_ = true;
-  }
 
-  virtual void load(const std::vector<float_t> &src, int &idx) {  // NOLINT
-    auto all_weights = weights();
-    for (auto &weight : all_weights) {
-      for (auto &w : *weight) w = src[idx++];
+    virtual void load(const std::vector<float_t> &src, int &idx) {  // NOLINT
+      auto all_weights = weights();
+      for (auto &weight : all_weights) {
+        for (auto &w : *weight) w = src[idx++];
+      }
+      initialized_ = true;
     }
-    initialized_ = true;
-  }
 
-/////////////////////////////////////////////////////////////////////////
-// visualize
+    /////////////////////////////////////////////////////////////////////////
+    // visualize
 
-///< visualize latest output of this layer
-///< default implementation interpret output as 1d-vector,
-///< so "visual" layer(like convolutional layer) should override this for better
-/// visualization.
+    ///< visualize latest output of this layer
+    ///< default implementation interpret output as 1d-vector,
+    ///< so "visual" layer(like convolutional layer) should override this for better
+    /// visualization.
 #ifdef DNN_USE_IMAGE_API
-  virtual image<> output_to_image(size_t channel = 0) const {
-    const vec_t *output = &(*(outputs()[channel]->get_data()))[0];
-    return vec2image<unsigned char>(*output, out_shape()[channel]);
-  }
+    virtual image<> output_to_image(size_t channel = 0) const {
+      const vec_t *output = &(*(outputs()[channel]->get_data()))[0];
+      return vec2image<unsigned char>(*output, out_shape()[channel]);
+    }
 #endif
 
-  /////////////////////////////////////////////////////////////////////////
-  // fprop/bprop
+    /////////////////////////////////////////////////////////////////////////
+    // fprop/bprop
 
-  /**
-   * @param in_data  input vectors of this layer (data, weight, bias)
-   * @param out_data output vectors
-   **/
-  virtual void forward_propagation(const std::vector<tensor_t *> &in_data,
-                                   std::vector<tensor_t *> &out_data) = 0;
+    /**
+     * @param in_data  input vectors of this layer (data, weight, bias)
+     * @param out_data output vectors
+     **/
+    virtual void forward_propagation(const std::vector<tensor_t *> &in_data,
+      std::vector<tensor_t *> &out_data) = 0;
+    virtual void fwd_prop_log(const std::vector<tensor_t *> &in_data,
+      std::vector<tensor_t *> &out_data) {}
 
-  /**
-   * return delta of previous layer (delta=\frac{dE}{da}, a=wx in
-   *fully-connected layer)
-   * @param in_data  input vectors (same vectors as forward_propagation)
-   * @param out_data output vectors (same vectors as forward_propagation)
-   * @param out_grad gradient of output vectors (i-th vector correspond with
-   *out_data[i])
-   * @param in_grad  gradient of input vectors (i-th vector correspond with
-   *in_data[i])
-   **/
-  virtual void back_propagation(const std::vector<tensor_t *> &in_data,
-                                const std::vector<tensor_t *> &out_data,
-                                std::vector<tensor_t *> &out_grad,
-                                std::vector<tensor_t *> &in_grad) = 0;
+    /**
+     * return delta of previous layer (delta=\frac{dE}{da}, a=wx in
+     *fully-connected layer)
+     * @param in_data  input vectors (same vectors as forward_propagation)
+     * @param out_data output vectors (same vectors as forward_propagation)
+     * @param out_grad gradient of output vectors (i-th vector correspond with
+     *out_data[i])
+     * @param in_grad  gradient of input vectors (i-th vector correspond with
+     *in_data[i])
+     **/
+    virtual void back_propagation(const std::vector<tensor_t *> &in_data,
+      const std::vector<tensor_t *> &out_data,
+      std::vector<tensor_t *> &out_grad,
+      std::vector<tensor_t *> &in_grad) = 0;
+    virtual void back_prop_log(const std::vector<tensor_t *> &in_data,
+      const std::vector<tensor_t *> &out_data,
+      std::vector<tensor_t *> &out_grad,
+      std::vector<tensor_t *> &in_grad)
+    {}
 
   /**
    * return delta2 of previous layer (delta2=\frac{d^2E}{da^2}, diagonal of
@@ -594,6 +601,7 @@ class layer : public node {
 
     // call the forward computation kernel/routine
     forward_propagation(fwd_in_data_, fwd_out_data_);
+    fwd_prop_log(fwd_in_data_, fwd_out_data_);
   }
 
   void backward() {
@@ -614,6 +622,7 @@ class layer : public node {
       bwd_out_grad_[i] = nd->get_gradient();
     }
     back_propagation(bwd_in_data_, bwd_out_data_, bwd_out_grad_, bwd_in_grad_);
+    back_prop_log(bwd_in_data_, bwd_out_data_, bwd_out_grad_, bwd_in_grad_);
   }
 
   /* @brief Allocates data in the computational graph and reset weights if

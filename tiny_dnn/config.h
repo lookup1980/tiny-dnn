@@ -91,4 +91,49 @@ typedef double float_t;
 typedef float float_t;
 #endif
 
+class log_manager
+{
+public:
+  static log_manager &get_instance()
+  {
+    static log_manager s;
+    return s;
+  }
+
+  bool enable_fwd_log()
+  {
+    bool ret = false;
+    if (fwd_number < fwd_threshold)
+    {
+      ret = true;
+    }
+
+    fwd_number++;
+    return ret;
+  }
+  bool enable_back_log()
+  {
+    bool ret = false;
+    if (back_number < back_threshold)
+    {
+      ret = true;
+    }
+
+    back_number++;
+    return ret;
+  }
+
+private:
+  log_manager()
+    :fwd_threshold(20), back_threshold(20),
+    fwd_number(0), back_number(0)
+  {
+
+  }
+
+  const int fwd_threshold, back_threshold;
+  int fwd_number, back_number;
+  //bool enable_input_log, enable_output_log;
+};
+
 }  // namespace tiny_dnn

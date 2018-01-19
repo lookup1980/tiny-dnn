@@ -274,6 +274,76 @@ class convolutional_layer : public layer {
     kernel_fwd_->compute(fwd_ctx_);
   }
 
+  void fwd_prop_log(const std::vector<tensor_t *> &in_data_,
+    std::vector<tensor_t *> &out_data_) 
+  {
+    // incoming/outcoming data
+    const tensor_t &in_data = *(in_data_)[0];
+    const tensor_t &W = *(in_data_)[1];
+    const tensor_t &bias = *(in_data_)[2];
+    tensor_t &out_data = *(out_data_)[0];
+
+    // FOR DEBUG ONLY
+    if (log_manager::get_instance().enable_fwd_log())
+    {
+      std::cout << "Convolution: W:" << std::endl;
+      for (size_t j = 0; j < W[0].size(); j++)
+      {
+        std::cout << W[0][j] << " ";
+        if ((j + 1) % 32 == 0)
+        {
+          std::cout << std::endl;
+        }
+      }
+      std::cout << std::endl;
+
+      std::cout << "Convolution: bias:" << std::endl;
+      for (size_t j = 0; j < bias[0].size(); j++)
+      {
+        std::cout << bias[0][j] << " ";
+        if ((j + 1) % 32 == 0)
+        {
+          std::cout << std::endl;
+        }
+      }
+      std::cout << std::endl;
+
+      std::cout << "Convolution: input:" << std::endl;
+      for (size_t i = 0; i < std::min<size_t>(2, in_data.size()); ++i) {
+        for (size_t j = 0; j < in_data[i].size(); ++j) {
+          std::cout << in_data[i][j] << " ";
+          if ((j + 1) % params_.in.width_ == 0)
+          {
+            std::cout << std::endl;
+            if ((j + 1) % (params_.in.width_ * params_.in.height_) == 0)
+            {
+              std::cout << std::endl;
+            }
+          }
+        }
+        std::cout << std::endl;
+      }
+
+
+      std::cout << "Convolution: output:" << std::endl;
+      for (size_t i = 0; i < std::min<size_t>(2, out_data.size()); ++i) {
+        for (size_t j = 0; j < out_data[i].size(); ++j) {
+          std::cout << out_data[i][j] << " ";
+          if ((j + 1) % params_.out.width_ == 0)
+          {
+            std::cout << std::endl;
+            if ((j + 1) % (params_.out.width_ * params_.out.height_) == 0)
+            {
+              std::cout << std::endl;
+            }
+          }
+        }
+        std::cout << std::endl;
+      }
+    }
+    std::cout << std::endl;
+  }
+
   /**
    * return delta of previous layer (delta=\frac{dE}{da}, a=wx in
    *fully-connected layer)
@@ -312,10 +382,14 @@ class convolutional_layer : public layer {
 
     // unpad deltas
     padding_op_.copy_and_unpad_delta(cws_.prev_delta_padded_, *in_grad[0]);
+  }
 
-
-    // FOR DEBUG ONLY
-    if (0)
+  void back_prop_log(const std::vector<tensor_t *> &in_data,
+    const std::vector<tensor_t *> &out_data,
+    std::vector<tensor_t *> &out_grad,
+    std::vector<tensor_t *> &in_grad)
+  {    // FOR DEBUG ONLY
+    if (log_manager::get_instance().enable_back_log())
     {
       std::cout << "Convolution bprop: output: " << std::endl;
       std::cout << "  prev delta: " << std::endl;
